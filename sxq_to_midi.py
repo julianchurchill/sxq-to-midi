@@ -518,8 +518,9 @@ def sxq_to_midi_full(sxq_path: str, midi_path: str):
     print(f"    Tempo:  {meta.sequence.tempo_bpm} BPM (mpq={meta.sequence.mpq})")
     print(f"    TimeSig:{meta.sequence.time_signature}")
     print(f"    Ticks/bar: {meta.sequence.ticks_per_bar}")
-    print(f"    Seq ticks: {meta.sequence.sequence_ticks}")
-    print(f"    Bars:      {meta.sequence.bars}")
+    print(f"    bar_count_from_ga00: {meta.sequence.bar_count_from_ga00}")
+    print(f"    Sequence ticks: {meta.sequence.sequence_ticks}")
+    print(f"    Bars (computed):      {meta.sequence.bars}")
 
     for tr in meta.tracks:
         print(f"  Track {tr.index}: name={tr.name}, Ga-11 lanes={len(tr.ga11_lanes)}, Ga events={len(tr.ga_events)}")
