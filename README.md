@@ -1,6 +1,6 @@
 # Dotnet Console App
 
-A dotnet console app to analyse a MIDI or SXQ file and output event information.
+A dotnet console app to analyse an SXQ file, output event information and attempt a basic split into individual single track SXQ files.
 
 ## Created By
 
@@ -9,7 +9,7 @@ A dotnet console app to analyse a MIDI or SXQ file and output event information.
 
 ## Run With
 
-`dotnet run .\Programs.cs <midi or sxq file>`
+`dotnet run .\Programs.cs <sxq file>`
 
 # Python Script
 
