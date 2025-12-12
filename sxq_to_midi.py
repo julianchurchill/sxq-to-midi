@@ -91,6 +91,43 @@ class SXQMetadata:
 # SXQ parsing
 ###############################################################################
 
+def extract_sequence_ticks_from_ga10(ga_events, ppqn, ticks_per_bar):
+    """
+    Extract sequence length in ticks from the Ga-10 metadata block.
+    This block contains ASCII metadata followed by binary fields.
+    We scan only Ga-10 events and look for the largest 4-byte integer
+    that satisfies:
+        - > 0
+        - < 10 million
+        - divisible by ppqn
+        - divisible by ticks_per_bar
+    """
+    best = None
+
+    for ge in ga_events:
+        if ge.subtype != 0x10:
+            continue
+
+        payload = ge.payload
+
+        # Scan all 4-byte windows
+        for i in range(len(payload) - 3):
+            val = int.from_bytes(payload[i:i+4], "big")
+
+            if val <= 0:
+                continue
+            if val >= 10_000_000:
+                continue
+            if val % ppqn != 0:
+                continue
+            if ticks_per_bar and val % ticks_per_bar != 0:
+                continue
+
+            if best is None or val > best:
+                best = val
+
+    return best
+
 def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
     """
     Parse SXQ (MIDI-container) file into structured metadata:
@@ -242,33 +279,23 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
         track_index += 1
         offset = track_end
 
-    # --- Derive sequence length in ticks (from Ga-10 / Ga-15 if possible) ---
-
-    # Commonly, sequence-level Ga events live in track 0:
+    # --- Derive sequence length in ticks from Ga-10 metadata ---
     seq_ticks = None
-    if sxq_tracks:
-        t0 = sxq_tracks[0]
-        for ge in t0.ga_events:
-            # This is heuristic: in your files, some Ga-10 / Ga-15 payloads
-            # contain a 4-byte big-endian sequence length in ticks.
-            # We'll scan each payload for a plausible tick count.
-            if len(ge.payload) >= 4:
-                # Try each 4-byte window as candidate
-                for i in range(len(ge.payload) - 3):
-                    candidate = int.from_bytes(ge.payload[i:i+4], "big")
-                    # Heuristics: must be non-zero, divisible by ppqn, and not insane
-                    if candidate > 0 and candidate % ppqn == 0 and candidate < 10_000_000:
-                        # Optional: prefer multiples of ticks_per_bar if known
-                        if seq_meta.ticks_per_bar and candidate % seq_meta.ticks_per_bar == 0:
-                            seq_ticks = candidate
-                            break
-                if seq_ticks is not None:
-                    break
+
+    # Sequence metadata is always in the Ga-10 block associated with the sequence,
+    # which in your clean SXQs is the Ga-10 block in Track 1.
+    if len(sxq_tracks) > 1:
+        ga10_events = [ge for ge in sxq_tracks[1].ga_events if ge.subtype == 0x10]
+
+        seq_ticks = extract_sequence_ticks_from_ga10(
+            ga10_events,
+            ppqn,
+            seq_meta.ticks_per_bar
+        )
 
     if seq_ticks is not None:
         seq_meta.sequence_ticks = seq_ticks
-        if seq_meta.ticks_per_bar:
-            seq_meta.bars = seq_ticks / seq_meta.ticks_per_bar
+        seq_meta.bars = seq_ticks / seq_meta.ticks_per_bar
 
     # Fallback: if we couldn't find sequence_ticks, leave bars as None
     return SXQMetadata(
