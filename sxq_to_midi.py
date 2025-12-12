@@ -76,7 +76,7 @@ class SXQSequenceMeta:
     ticks_per_bar: Optional[int] = None
     sequence_ticks: Optional[int] = None
     bars: Optional[float] = None
-
+    bar_count_from_ga00: Optional[int] = None
 
 @dataclass
 class SXQMetadata:
@@ -232,6 +232,24 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
                         payload = meta_data[3:]
                         track.ga_events.append(GaEvent(subtype=subtype, payload=payload))
 
+                        # --- Ga-00 in Track 0: bar count ---
+                        if track_index == 0 and subtype == 0x00:
+                            # From your 8-bar example:
+                            #   FF 7F 0F 47 61 00  00 00 08 00  01 00 09 00 01 00 00 00 00 00
+                            # payload = 00 00 08 00 01 00 09 00 01 00 00 00 00 00
+                            #
+                            # We interpret the first 4 bytes as a big-endian int:
+                            #   00 00 08 00 = 2048
+                            # which is 8 * 256. That "8" matches the bar count.
+                            #
+                            # So bar_count = (first_4_bytes // 256)
+                            if len(payload) >= 4:
+                                raw_val = int.from_bytes(payload[0:4], "big")
+                                if raw_val % 256 == 0:
+                                    bar_count = raw_val // 256
+                                    if bar_count > 0 and bar_count < 1000:
+                                        seq_meta.bar_count_from_ga00 = bar_count
+
                         if subtype == 0x11:
                             # Ga-11 lane definition
                             # Known mapping from your experiments:
@@ -279,21 +297,35 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
         track_index += 1
         offset = track_end
 
-    # --- Derive sequence length in ticks from Ga-10 metadata ---
+    # --- Derive sequence length in ticks and bar count ---
+
     seq_ticks = None
 
-    # Sequence metadata is always in the Ga-10 block associated with the sequence,
-    # which in your clean SXQs is the Ga-10 block in Track 1.
-    if len(sxq_tracks) > 1:
+    # 1) Prefer Ga-10 in the "sequence" track (Track 1 in your SXQs)
+    if len(sxq_tracks) > 1 and seq_meta.ticks_per_bar:
         ga10_events = [ge for ge in sxq_tracks[1].ga_events if ge.subtype == 0x10]
-
         seq_ticks = extract_sequence_ticks_from_ga10(
             ga10_events,
             ppqn,
-            seq_meta.ticks_per_bar
+            seq_meta.ticks_per_bar,
         )
 
-    if seq_ticks is not None:
+    # 2) If we have a Ga-00 bar count, use it to cross-check or fill gaps
+    if seq_meta.bar_count_from_ga00 and seq_meta.ticks_per_bar:
+        bars_from_ga00 = seq_meta.bar_count_from_ga00
+        ticks_from_ga00 = bars_from_ga00 * seq_meta.ticks_per_bar
+
+        if seq_ticks is None:
+            # No Ga-10 ticks found, trust Ga-00
+            seq_ticks = ticks_from_ga00
+        else:
+            # Cross-check: if they differ wildly, prefer Ga-10 for now but
+            # you could log/print a warning here.
+            if abs(seq_ticks - ticks_from_ga00) > seq_meta.ticks_per_bar:
+                # For now, keep Ga-10 as primary. If you prefer, flip this.
+                pass
+
+    if seq_ticks is not None and seq_meta.ticks_per_bar:
         seq_meta.sequence_ticks = seq_ticks
         seq_meta.bars = seq_ticks / seq_meta.ticks_per_bar
 
