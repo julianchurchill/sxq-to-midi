@@ -457,3 +457,4 @@ $RECYCLE.BIN/
 # - ignore sxq and midi files in top level directory as they tend to be temporary
 /*.sxq
 /*.mid
+/temp
