@@ -452,3 +452,8 @@ $RECYCLE.BIN/
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+
+# Custom
+# - ignore sxq and midi files in top level directory as they tend to be temporary
+/*.sxq
+/*.mid
