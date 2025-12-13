@@ -343,6 +343,10 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
                 else:
                     track_offset += 2
 
+        print(
+            f"[Track {track_index}] done: name={track.name}, "
+            f"Ga events={len(track.ga_events)}, Ga-11 lanes={len(track.ga11_lanes)}"
+        )
         sxq_tracks.append(track)
         track_index += 1
         offset = track_end
