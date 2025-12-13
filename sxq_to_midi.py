@@ -57,6 +57,7 @@ class Ga11Lane:
     velocity: int
     delta_ticks: int
     rhythmic_class: Tuple[int, int]
+    event_delta: int
 
 
 @dataclass
@@ -292,7 +293,6 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
                         subtype = meta_data[2]
                         payload = meta_data[3:]
                         track.ga_events.append(GaEvent(subtype=subtype, payload=payload))
-                        track.ga_events[-1].event_delta = current_event_delta
 
                         # Ga-00 in Track 0: bar count
                         if track_index == 0 and subtype == 0x00:
@@ -325,6 +325,7 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
                                     velocity=velocity,
                                     delta_ticks=delta_ticks,
                                     rhythmic_class=rhythmic_class,
+                                    event_delta=current_event_delta
                                 )
                                 track.ga11_lanes.append(lane)
                                 print(f"    [Ga11] pitch={midi_note}, vel={velocity}, delta_ticks={delta_ticks}, "
@@ -496,18 +497,12 @@ def build_midi_from_sxq_meta(meta: SXQMetadata) -> bytes:
         #
         abs_time = 0
 
-        for ge, lane in zip(tr.ga_events, tr.ga11_lanes):
+        for lane in tr.ga11_lanes:
             # event_delta is the VLQ before the FF 7F meta
             # We must accumulate it to get absolute time.
             # parse_sxq() already read event_delta, but we need to
-            # re-accumulate it here. So we store event_delta inside GaEvent.
-            # If not stored yet, add it now.
-            if not hasattr(ge, "event_delta"):
-                # parse_sxq did not store it; fix by adding storage there if needed.
-                # For now, assume event_delta was stored.
-                pass
-
-            abs_time += ge.event_delta
+            # re-accumulate it here.
+            abs_time += lane.event_delta
 
             start = abs_time
             note_len = note_length_from_rhythmic_class(lane.rhythmic_class, ppqn)
