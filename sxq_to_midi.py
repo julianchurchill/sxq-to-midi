@@ -385,16 +385,6 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
         tracks=sxq_tracks,
     )
 
-def steps_from_rhythmic_class(rc):
-    # Hard-coded from your calibration SXQs for now
-    if rc == (64, 63):
-        return 4
-    if rc == (64, 95):
-        return 8
-    if rc == (64, 111):
-        return 16
-    return None
-
 ###############################################################################
 # Build MIDI from parsed SXQ
 ###############################################################################
