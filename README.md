@@ -21,7 +21,8 @@ A python script generated with AI to convert SXQ files to MIDI.
 
 # TODO - sxq_to_midi.py
 
-- Handle triplets
-- Handle tempo
-- Handle time signature
+- Ensure variable velocity is being converted
 - Handle parallel notes with different pitches
+- Handle tempo (not in a special track 0 conductor track if possible)
+- Handle time signature (not in a special track 0 conductor track if possible)
+- Handle triplets
