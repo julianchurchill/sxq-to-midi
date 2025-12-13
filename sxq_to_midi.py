@@ -156,6 +156,62 @@ def extract_bar_count_from_ga00(payload: bytes) -> Optional[int]:
 
     return bar_count
 
+def lane_note_length_ticks_from_spacing(lane, ppqn, ticks_per_bar):
+    delta = lane.delta_ticks
+    if delta <= 0:
+        return ticks_per_bar // 16, None
+
+    # Compute steps per bar
+    steps_per_bar = ticks_per_bar / delta
+
+    # Candidate grids
+    grids = [1, 2, 3, 4, 6, 8, 12, 16, 24, 32]
+
+    # Snap to nearest grid
+    best = min(grids, key=lambda g: abs(steps_per_bar - g))
+
+    # Compute note length
+    note_len = ticks_per_bar // best
+
+    # Prevent overlap
+    note_len = min(note_len, delta)
+
+    return note_len, steps_per_bar
+
+def is_musical_lane(lane, ticks_per_bar):
+    # Must have positive spacing
+    if lane.delta_ticks <= 0:
+        return False
+
+    # Must be shorter than a bar
+    if lane.delta_ticks >= ticks_per_bar:
+        return False
+
+    # Must divide the bar evenly (quarters, 8ths, 16ths, triplets, etc.)
+    if ticks_per_bar % lane.delta_ticks != 0:
+        return False
+
+    # Must have a real velocity
+    if lane.velocity <= 0:
+        return False
+
+    # Must have a real pitch (after subtracting 12)
+    if lane.pitch < 0:
+        return False
+
+    return True
+
+def log_lane_rhythm_info(lane: Ga11Lane,
+                         ticks_per_bar: int,
+                         note_len: int,
+                         steps_per_bar: float):
+    print(
+        f"[Ga11] pitch={lane.pitch:3d}  vel={lane.velocity:3d}  "
+        f"delta={lane.delta_ticks:4d}  "
+        f"rhythmic_class={lane.rhythmic_class}  "
+        f"steps_per_bar={steps_per_bar:5.2f}  "
+        f"note_len={note_len:4d}"
+    )
 
 ###############################################################################
 # SXQ parsing
@@ -439,6 +495,10 @@ def build_midi_from_sxq_meta(meta: SXQMetadata) -> bytes:
         events = []  # (tick, is_on, pitch, velocity)
 
         for lane in tr.ga11_lanes:
+            # Skip non-musical Ga-11 lanes
+            if not is_musical_lane(lane, ticks_per_bar):
+                continue
+
             pitch = lane.pitch
             vel = lane.velocity
             delta_ticks = lane.delta_ticks
@@ -446,8 +506,19 @@ def build_midi_from_sxq_meta(meta: SXQMetadata) -> bytes:
                 continue
 
             t = 0
-            # Simple note length heuristic: half spacing or min 32nd note
-            note_len = max(delta_ticks // 2, ppqn // 8)
+
+            note_len, steps_per_bar = lane_note_length_ticks_from_spacing(
+                lane,
+                ppqn=ppqn,
+                ticks_per_bar=ticks_per_bar,
+            )
+
+            log_lane_rhythm_info(
+                lane,
+                ticks_per_bar=ticks_per_bar,
+                note_len=note_len,
+                steps_per_bar=steps_per_bar if steps_per_bar else 0.0,
+            )
 
             while t < seq_len_ticks:
                 events.append((t, True, pitch, vel))
