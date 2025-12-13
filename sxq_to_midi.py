@@ -333,22 +333,15 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
                                 midi_note = pitch_byte - 12
                                 rhythmic_class = (payload[6], payload[7])
 
-                                # For some SXQs, delta_ticks is stored in the last 4 bytes of the payload
-                                # delta_ticks = int.from_bytes(payload[-4:], "big")
-
-                                # For some SXQs, delta_ticks is stored as VLQ immediately after Ga-11
-                                delta_ticks, track_offset = read_vlq(sxq_bytes, track_offset)
-
                                 lane = Ga11Lane(
                                     pitch=midi_note,
                                     velocity=velocity,
-                                    delta_ticks=delta_ticks,
+                                    delta_ticks=0,
                                     rhythmic_class=rhythmic_class,
                                 )
                                 track.ga11_lanes.append(lane)
                                 print(f"    [Ga11] pitch={midi_note}, vel={velocity}, "
-                                      f"delta={delta_ticks}, rhythmic_class={rhythmic_class}")
-
+                                      f"rhythmic_class={rhythmic_class}, payload_len={len(payload)}")
 
                         # other Ga subtypes: we just keep them raw for now.
 
@@ -407,6 +400,15 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
         tracks=sxq_tracks,
     )
 
+def steps_from_rhythmic_class(rc):
+    # Hard-coded from your calibration SXQs for now
+    if rc == (64, 63):
+        return 4
+    if rc == (64, 95):
+        return 8
+    if rc == (64, 111):
+        return 16
+    return None
 
 ###############################################################################
 # Build MIDI from parsed SXQ
@@ -498,41 +500,26 @@ def build_midi_from_sxq_meta(meta: SXQMetadata) -> bytes:
         events = []  # (tick, is_on, pitch, velocity)
 
         for lane in tr.ga11_lanes:
-            # Skip non-musical Ga-11 lanes
+            steps = steps_from_rhythmic_class(lane.rhythmic_class)
+            if steps is None:
+                print(f"[Track {t.index}] skipping lane with unknown rhythmic_class={lane.rhythmic_class}")
+                continue
+
+            delta_ticks = ticks_per_bar // steps
+            note_len = delta_ticks  # or finer heuristic if you like
+
             print(
-                f"[Lane check] pitch={lane.pitch}, vel={lane.velocity}, "
-                f"delta={lane.delta_ticks}, ticks_per_bar={ticks_per_bar}"
-            )
-            if not is_musical_lane(lane, ticks_per_bar):
-                continue
-
-            pitch = lane.pitch
-            vel = lane.velocity
-            delta_ticks = lane.delta_ticks
-            if delta_ticks <= 0:
-                continue
-
-            t = 0
-
-            note_len, steps_per_bar = lane_note_length_ticks_from_spacing(
-                lane,
-                ppqn=ppqn,
-                ticks_per_bar=ticks_per_bar,
+                f"[Ga11 lane] pitch={lane.pitch} vel={lane.velocity} "
+                f"rc={lane.rhythmic_class} steps={steps} delta={delta_ticks}"
             )
 
-            log_lane_rhythm_info(
-                lane,
-                ticks_per_bar=ticks_per_bar,
-                note_len=note_len,
-                steps_per_bar=steps_per_bar if steps_per_bar else 0.0,
-            )
-
-            while t < seq_len_ticks:
-                events.append((t, True, pitch, vel))
-                off_tick = t + note_len
-                if off_tick <= seq_len_ticks:
-                    events.append((off_tick, False, pitch, 0))
-                t += delta_ticks
+            tcur = 0
+            while tcur < ticks_per_bar:
+                events.append((tcur, True, lane.pitch, lane.velocity))
+                off_tick = tcur + note_len
+                if off_tick <= ticks_per_bar:
+                    events.append((off_tick, False, lane.pitch, 0))
+                tcur += delta_ticks
 
         # Sort events: time, then note-off before note-on at same tick
         events.sort(key=lambda e: (e[0], 0 if not e[1] else 1))
