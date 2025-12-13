@@ -333,11 +333,8 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
                                 midi_note = pitch_byte - 12
                                 rhythmic_class = (payload[6], payload[7])
 
-                                # Immediately after this event, SXQ stores a VLQ
-                                # encoding spacing between hits for this lane.
-                                delta_ticks, track_offset = read_vlq(
-                                    sxq_bytes, track_offset
-                                )
+                                # delta_ticks is stored in the last 4 bytes of the payload
+                                delta_ticks = int.from_bytes(payload[-4:], "big")
 
                                 lane = Ga11Lane(
                                     pitch=midi_note,
@@ -346,6 +343,9 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
                                     rhythmic_class=rhythmic_class,
                                 )
                                 track.ga11_lanes.append(lane)
+                                print(f"    [Ga11] pitch={midi_note}, vel={velocity}, "
+                                      f"delta={delta_ticks}, rhythmic_class={rhythmic_class}")
+
 
                         # other Ga subtypes: we just keep them raw for now.
 
