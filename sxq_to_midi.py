@@ -274,8 +274,8 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
                 meta_type = sxq_bytes[track_offset]
                 track_offset += 1
 
-                meta_len, track_offset2 = read_vlq(sxq_bytes, track_offset)
-                meta_data_start = track_offset2
+                meta_len, track_offset = read_vlq(sxq_bytes, track_offset)
+                meta_data_start = track_offset
                 meta_data_end = meta_data_start + meta_len
                 meta_data = sxq_bytes[meta_data_start:meta_data_end]
                 track_offset = meta_data_end
