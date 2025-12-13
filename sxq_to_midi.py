@@ -178,29 +178,6 @@ def lane_note_length_ticks_from_spacing(lane, ppqn, ticks_per_bar):
 
     return note_len, steps_per_bar
 
-def is_musical_lane(lane, ticks_per_bar):
-    # Must have positive spacing
-    if lane.delta_ticks <= 0:
-        return False
-
-    # Must be shorter than a bar
-    if lane.delta_ticks >= ticks_per_bar:
-        return False
-
-    # Must divide the bar evenly (quarters, 8ths, 16ths, triplets, etc.)
-    if ticks_per_bar % lane.delta_ticks != 0:
-        return False
-
-    # Must have a real velocity
-    if lane.velocity <= 0:
-        return False
-
-    # Must have a real pitch (after subtracting 12)
-    if lane.pitch < 0:
-        return False
-
-    return True
-
 def log_lane_rhythm_info(lane: Ga11Lane,
                          ticks_per_bar: int,
                          note_len: int,
