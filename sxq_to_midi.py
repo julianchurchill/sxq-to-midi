@@ -1,7 +1,7 @@
 import struct
 import sys
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple, Dict, Any
+from typing import List, Optional, Tuple
 
 ###############################################################################
 # Basic helpers
@@ -78,6 +78,7 @@ class SXQSequenceMeta:
     bars: Optional[float] = None
     bar_count_from_ga00: Optional[int] = None
 
+
 @dataclass
 class SXQMetadata:
     ppqn: int
@@ -88,19 +89,20 @@ class SXQMetadata:
 
 
 ###############################################################################
-# SXQ parsing
+# Ga-10 / Ga-00 decoding
 ###############################################################################
 
-def extract_sequence_ticks_from_ga10(ga_events, ppqn, ticks_per_bar):
+def extract_sequence_ticks_from_ga10(ga_events: List[GaEvent],
+                                     ppqn: int,
+                                     ticks_per_bar: Optional[int]) -> Optional[int]:
     """
-    Extract sequence length in ticks from the Ga-10 metadata block.
-    This block contains ASCII metadata followed by binary fields.
+    Extract sequence length in ticks from Ga-10 metadata block(s).
     We scan only Ga-10 events and look for the largest 4-byte integer
     that satisfies:
         - > 0
         - < 10 million
         - divisible by ppqn
-        - divisible by ticks_per_bar
+        - divisible by ticks_per_bar (if provided)
     """
     best = None
 
@@ -110,7 +112,6 @@ def extract_sequence_ticks_from_ga10(ga_events, ppqn, ticks_per_bar):
 
         payload = ge.payload
 
-        # Scan all 4-byte windows
         for i in range(len(payload) - 3):
             val = int.from_bytes(payload[i:i+4], "big")
 
@@ -128,6 +129,38 @@ def extract_sequence_ticks_from_ga10(ga_events, ppqn, ticks_per_bar):
 
     return best
 
+
+def extract_bar_count_from_ga00(payload: bytes) -> Optional[int]:
+    """
+    Decode Ga-00 bar count from the first 4 bytes of the payload.
+
+    From comparison of lastgood.sxq (8 bars) and lastgood-4bars.sxq (4 bars):
+
+      lastgood-4bars:
+        payload[0:4] = 00 04 00 01  -> high 16 bits = 0x0004 = 4 bars
+
+      lastgood (8 bars):
+        payload[0:4] = 00 08 00 01  -> high 16 bits = 0x0008 = 8 bars
+
+    So:
+      bar_count = (payload[0:4] >> 16)
+    """
+    if len(payload) < 4:
+        return None
+
+    raw_val = int.from_bytes(payload[0:4], "big")
+    bar_count = (raw_val >> 16) & 0xFFFF
+
+    if bar_count <= 0 or bar_count >= 1000:
+        return None
+
+    return bar_count
+
+
+###############################################################################
+# SXQ parsing
+###############################################################################
+
 def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
     """
     Parse SXQ (MIDI-container) file into structured metadata:
@@ -138,14 +171,14 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
     offset = 0
     file_len = len(sxq_bytes)
 
-    # --- Header (MThd) ---
+    # Header
     if sxq_bytes[0:4] != b"MThd":
         raise ValueError("Not an SXQ/MIDI-style file: missing MThd")
     offset += 4
 
     header_len, offset = read_uint32_be(sxq_bytes, offset)
     if header_len != 6:
-        # Still skip, but this is unusual
+        # Still skip, but this is unusual; we assume well-formed SXQ.
         pass
 
     format_type, offset = read_uint16_be(sxq_bytes, offset)
@@ -156,15 +189,14 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
         raise ValueError("SMPTE division not supported for SXQ parsing.")
     ppqn = division
 
-    # Sequence-level metadata
     seq_meta = SXQSequenceMeta()
-
     sxq_tracks: List[SXQTrack] = []
     track_index = 0
 
     while offset < file_len and len(sxq_tracks) < num_tracks:
         if sxq_bytes[offset:offset+4] != b"MTrk":
             break
+
         offset += 4
         track_len, offset = read_uint32_be(sxq_bytes, offset)
         track_end = offset + track_len
@@ -172,7 +204,6 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
         track = SXQTrack(index=track_index)
         track_offset = offset
 
-        # Parse events within this track
         while track_offset < track_end:
             event_delta, track_offset = read_vlq(sxq_bytes, track_offset)
             if track_offset >= track_end:
@@ -182,7 +213,6 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
             track_offset += 1
 
             if status == 0xFF:
-                # Meta event
                 if track_offset >= track_end:
                     break
                 meta_type = sxq_bytes[track_offset]
@@ -194,78 +224,64 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
                 meta_data = sxq_bytes[meta_data_start:meta_data_end]
                 track_offset = meta_data_end
 
-                # --- Track name ---
-                if meta_type == 0x03:  # Track Name
+                # Track name
+                if meta_type == 0x03:
                     try:
                         name = meta_data.decode("utf-8", errors="replace")
                     except Exception:
                         name = None
                     track.name = name
-                    if track_index == 0:
-                        # Often sequence name lives here
-                        if seq_meta.name is None:
-                            seq_meta.name = name
+                    if track_index == 0 and seq_meta.name is None:
+                        seq_meta.name = name
 
-                # --- Tempo ---
+                # Tempo
                 elif meta_type == 0x51 and meta_len == 3:
                     mpq = int.from_bytes(meta_data, "big")
                     seq_meta.mpq = mpq
                     if mpq > 0:
                         seq_meta.tempo_bpm = 60_000_000 / mpq
 
-                # --- Time Signature ---
+                # Time signature
                 elif meta_type == 0x58 and meta_len >= 2:
-                    nn = meta_data[0]  # numerator
-                    dd = meta_data[1]  # denominator as power of 2
-                    denominator = 2 ** dd
+                    nn = meta_data[0]
+                    dd_power = meta_data[1]
+                    denominator = 2 ** dd_power
                     seq_meta.time_signature = (nn, denominator)
-                    if seq_meta.time_signature and ppqn:
-                        # ticks per bar = numerator * quarter-notes-per-bar * ppqn
-                        # assuming 4/4 mapping: 4 quarter notes per bar
-                        seq_meta.ticks_per_bar = nn * (ppqn * 4 // denominator)
+                    if denominator != 0:
+                        # ticks_per_bar = nn * quarter_notes_per_bar * ppqn
+                        # quarter_notes_per_bar = 4 / denominator
+                        seq_meta.ticks_per_bar = int(nn * (ppqn * 4 / denominator))
 
-                # --- Vendor-specific (Akai "Ga") ---
+                # Vendor-specific (Ga)
                 elif meta_type == 0x7F:
-                    # Vendor event. We expect payload: 47 61 <subtype> ...
                     if len(meta_data) >= 3 and meta_data[0:2] == b"Ga":
                         subtype = meta_data[2]
                         payload = meta_data[3:]
                         track.ga_events.append(GaEvent(subtype=subtype, payload=payload))
 
-                        # --- Ga-00 in Track 0: bar count ---
+                        # Ga-00 in Track 0: bar count
                         if track_index == 0 and subtype == 0x00:
-                            # From your 8-bar example:
-                            #   FF 7F 0F 47 61 00  00 00 08 00  01 00 09 00 01 00 00 00 00 00
-                            # payload = 00 00 08 00 01 00 09 00 01 00 00 00 00 00
-                            #
-                            # We interpret the first 4 bytes as a big-endian int:
-                            #   00 00 08 00 = 2048
-                            # which is 8 * 256. That "8" matches the bar count.
-                            #
-                            # So bar_count = (first_4_bytes // 256)
-                            if len(payload) >= 4:
-                                raw_val = int.from_bytes(payload[0:4], "big")
-                                if raw_val % 256 == 0:
-                                    bar_count = raw_val // 256
-                                    if bar_count > 0 and bar_count < 1000:
-                                        seq_meta.bar_count_from_ga00 = bar_count
+                            bar_count = extract_bar_count_from_ga00(payload)
+                            if bar_count is not None:
+                                seq_meta.bar_count_from_ga00 = bar_count
 
-                        if subtype == 0x11:
-                            # Ga-11 lane definition
+                        # Ga-11: lane definitions
+                        elif subtype == 0x11:
                             # Known mapping from your experiments:
-                            #   payload[0] = flag (0x02)
-                            #   payload[1] = pitch_byte
-                            #   payload[2] = velocity
-                            #   payload[6:8] = rhythmic class (2 bytes)
+                            #  payload[1] = pitch_byte
+                            #  payload[2] = velocity
+                            #  payload[6:8] = rhythmic_class
                             if len(payload) >= 8:
                                 pitch_byte = payload[1]
                                 velocity = payload[2]
                                 midi_note = pitch_byte - 12
                                 rhythmic_class = (payload[6], payload[7])
 
-                                # After this vendor event, there is a delta-time VLQ
-                                # used by SXQ as spacing between hits.
-                                delta_ticks, track_offset = read_vlq(sxq_bytes, track_offset)
+                                # Immediately after this event, SXQ stores a VLQ
+                                # encoding spacing between hits for this lane.
+                                delta_ticks, track_offset = read_vlq(
+                                    sxq_bytes, track_offset
+                                )
 
                                 lane = Ga11Lane(
                                     pitch=midi_note,
@@ -275,10 +291,7 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
                                 )
                                 track.ga11_lanes.append(lane)
 
-                        else:
-                            # Other Ga subtypes (Ga-10, Ga-13, Ga-15, etc.)
-                            # For now, we just store the raw payload.
-                            pass
+                        # other Ga subtypes: we just keep them raw for now.
 
             elif status in (0xF0, 0xF7):
                 # SysEx: read length and skip payload
@@ -286,9 +299,9 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
                 track_offset = track_offset2 + sysex_len
 
             else:
-                # MIDI channel event; we just skip the data bytes.
+                # MIDI channel event: skip data bytes
                 high_nibble = status & 0xF0
-                if high_nibble in (0xC0, 0xD0):  # Program change / Channel pressure
+                if high_nibble in (0xC0, 0xD0):  # Program Change / Channel Pressure
                     track_offset += 1
                 else:
                     track_offset += 2
@@ -301,7 +314,7 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
 
     seq_ticks = None
 
-    # 1) Prefer Ga-10 in the "sequence" track (Track 1 in your SXQs)
+    # 1) Prefer Ga-10 in Track 1 (sequence/program metadata track)
     if len(sxq_tracks) > 1 and seq_meta.ticks_per_bar:
         ga10_events = [ge for ge in sxq_tracks[1].ga_events if ge.subtype == 0x10]
         seq_ticks = extract_sequence_ticks_from_ga10(
@@ -310,26 +323,23 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
             seq_meta.ticks_per_bar,
         )
 
-    # 2) If we have a Ga-00 bar count, use it to cross-check or fill gaps
+    # 2) Use Ga-00 bar count as backup or cross-check
     if seq_meta.bar_count_from_ga00 and seq_meta.ticks_per_bar:
         bars_from_ga00 = seq_meta.bar_count_from_ga00
         ticks_from_ga00 = bars_from_ga00 * seq_meta.ticks_per_bar
 
         if seq_ticks is None:
-            # No Ga-10 ticks found, trust Ga-00
             seq_ticks = ticks_from_ga00
         else:
-            # Cross-check: if they differ wildly, prefer Ga-10 for now but
-            # you could log/print a warning here.
+            # Optional: cross-check; you can tighten this if you want strict equality
             if abs(seq_ticks - ticks_from_ga00) > seq_meta.ticks_per_bar:
-                # For now, keep Ga-10 as primary. If you prefer, flip this.
+                # For now, keep Ga-10 as primary; you could log/print here.
                 pass
 
     if seq_ticks is not None and seq_meta.ticks_per_bar:
         seq_meta.sequence_ticks = seq_ticks
         seq_meta.bars = seq_ticks / seq_meta.ticks_per_bar
 
-    # Fallback: if we couldn't find sequence_ticks, leave bars as None
     return SXQMetadata(
         ppqn=ppqn,
         format_type=format_type,
@@ -340,7 +350,7 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
 
 
 ###############################################################################
-# Build a multitrack MIDI file from parsed SXQ
+# Build MIDI from parsed SXQ
 ###############################################################################
 
 def build_midi_from_sxq_meta(meta: SXQMetadata) -> bytes:
@@ -355,7 +365,7 @@ def build_midi_from_sxq_meta(meta: SXQMetadata) -> bytes:
     if meta.sequence.sequence_ticks is not None:
         seq_len_ticks = meta.sequence.sequence_ticks
     else:
-        # Fallback: 4 bars if unknown
+        # Fallback: if we somehow don't have sequence_ticks, assume 4 bars
         ticks_per_bar = meta.sequence.ticks_per_bar or (4 * ppqn)
         seq_len_ticks = 4 * ticks_per_bar
 
@@ -365,17 +375,14 @@ def build_midi_from_sxq_meta(meta: SXQMetadata) -> bytes:
     if meta.sequence.mpq is not None:
         mpq = meta.sequence.mpq
     else:
-        # Default 120 BPM
-        mpq = int(60_000_000 / 120)
+        mpq = int(60_000_000 / 120)  # default 120 BPM
 
     midi_tracks: List[bytearray] = []
 
-    # -------------------------------------------------------------------------
     # Track 0: Conductor
-    # -------------------------------------------------------------------------
     t0 = bytearray()
 
-    # Sequence/track name
+    # Sequence / track name
     t0 += write_vlq(0)
     t0 += bytes([0xFF, 0x03])
     if meta.sequence.name:
@@ -387,13 +394,12 @@ def build_midi_from_sxq_meta(meta: SXQMetadata) -> bytes:
 
     # Tempo
     t0 += write_vlq(0)
-    t0 += bytes([0xFF, 0x51, 0x03])  # Set Tempo
+    t0 += bytes([0xFF, 0x51, 0x03])
     t0 += mpq.to_bytes(3, "big")
 
     # Time signature
     if meta.sequence.time_signature:
         nn, dd = meta.sequence.time_signature
-        # TS meta: nn, dd_power, clocks, 32nd_notes_per_24_clocks
         dd_power = 0
         while (1 << dd_power) < dd and dd_power < 7:
             dd_power += 1
@@ -404,14 +410,12 @@ def build_midi_from_sxq_meta(meta: SXQMetadata) -> bytes:
         t0 += write_vlq(0)
         t0 += bytes([0xFF, 0x58, 0x04, 0x04, 0x02, 0x18, 0x08])
 
-    # End of track 0
+    # End of Track 0
     t0 += write_vlq(0)
     t0 += bytes([0xFF, 0x2F, 0x00])
     midi_tracks.append(t0)
 
-    # -------------------------------------------------------------------------
     # One MIDI track per SXQ track (Ga-11 → notes)
-    # -------------------------------------------------------------------------
     for tr in meta.tracks:
         track_bytes = bytearray()
 
@@ -432,7 +436,6 @@ def build_midi_from_sxq_meta(meta: SXQMetadata) -> bytes:
             midi_tracks.append(track_bytes)
             continue
 
-        # Collect note events for this track
         events = []  # (tick, is_on, pitch, velocity)
 
         for lane in tr.ga11_lanes:
@@ -443,7 +446,7 @@ def build_midi_from_sxq_meta(meta: SXQMetadata) -> bytes:
                 continue
 
             t = 0
-            # Note length heuristic: half spacing or min of 32nd note
+            # Simple note length heuristic: half spacing or min 32nd note
             note_len = max(delta_ticks // 2, ppqn // 8)
 
             while t < seq_len_ticks:
@@ -453,7 +456,7 @@ def build_midi_from_sxq_meta(meta: SXQMetadata) -> bytes:
                     events.append((off_tick, False, pitch, 0))
                 t += delta_ticks
 
-        # Sort events by time, note-offs before note-ons at same tick
+        # Sort events: time, then note-off before note-on at same tick
         events.sort(key=lambda e: (e[0], 0 if not e[1] else 1))
 
         last_tick = 0
@@ -473,24 +476,20 @@ def build_midi_from_sxq_meta(meta: SXQMetadata) -> bytes:
             track_bytes.append(pitch & 0x7F)
             track_bytes.append(vel & 0x7F)
 
-        # End of this MIDI track
+        # End of this track
         track_bytes += write_vlq(0)
         track_bytes += bytes([0xFF, 0x2F, 0x00])
 
         midi_tracks.append(track_bytes)
 
-    # -------------------------------------------------------------------------
     # Build SMF (Format 1)
-    # -------------------------------------------------------------------------
     midi_bytes = bytearray()
-    # Header
     midi_bytes += b"MThd"
     midi_bytes += struct.pack(">I", 6)
-    midi_bytes += struct.pack(">H", 1)  # Format 1
+    midi_bytes += struct.pack(">H", 1)  # format 1
     midi_bytes += struct.pack(">H", len(midi_tracks))
     midi_bytes += struct.pack(">H", ppqn)
 
-    # Tracks
     for trk in midi_tracks:
         midi_bytes += b"MTrk"
         midi_bytes += struct.pack(">I", len(trk))
@@ -518,9 +517,9 @@ def sxq_to_midi_full(sxq_path: str, midi_path: str):
     print(f"    Tempo:  {meta.sequence.tempo_bpm} BPM (mpq={meta.sequence.mpq})")
     print(f"    TimeSig:{meta.sequence.time_signature}")
     print(f"    Ticks/bar: {meta.sequence.ticks_per_bar}")
-    print(f"    bar_count_from_ga00: {meta.sequence.bar_count_from_ga00}")
-    print(f"    Sequence ticks: {meta.sequence.sequence_ticks}")
-    print(f"    Bars (computed):      {meta.sequence.bars}")
+    print(f"    Bar count (Ga-00): {meta.sequence.bar_count_from_ga00}")
+    print(f"    Seq ticks (Ga-10/Ga-00): {meta.sequence.sequence_ticks}")
+    print(f"    Bars (computed):         {meta.sequence.bars}")
 
     for tr in meta.tracks:
         print(f"  Track {tr.index}: name={tr.name}, Ga-11 lanes={len(tr.ga11_lanes)}, Ga events={len(tr.ga_events)}")
