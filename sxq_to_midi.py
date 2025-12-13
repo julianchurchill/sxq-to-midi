@@ -333,8 +333,11 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
                                 midi_note = pitch_byte - 12
                                 rhythmic_class = (payload[6], payload[7])
 
-                                # delta_ticks is stored in the last 4 bytes of the payload
-                                delta_ticks = int.from_bytes(payload[-4:], "big")
+                                # For some SXQs, delta_ticks is stored in the last 4 bytes of the payload
+                                # delta_ticks = int.from_bytes(payload[-4:], "big")
+
+                                # For some SXQs, delta_ticks is stored as VLQ immediately after Ga-11
+                                delta_ticks, track_offset = read_vlq(sxq_bytes, track_offset)
 
                                 lane = Ga11Lane(
                                     pitch=midi_note,
@@ -496,6 +499,10 @@ def build_midi_from_sxq_meta(meta: SXQMetadata) -> bytes:
 
         for lane in tr.ga11_lanes:
             # Skip non-musical Ga-11 lanes
+            print(
+                f"[Lane check] pitch={lane.pitch}, vel={lane.velocity}, "
+                f"delta={lane.delta_ticks}, ticks_per_bar={ticks_per_bar}"
+            )
             if not is_musical_lane(lane, ticks_per_bar):
                 continue
 
