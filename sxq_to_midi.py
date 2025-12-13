@@ -239,6 +239,7 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
 
         while track_offset < track_end:
             event_delta, track_offset = read_vlq(sxq_bytes, track_offset)
+            current_event_delta = event_delta
             if track_offset >= track_end:
                 break
 
@@ -291,6 +292,7 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
                         subtype = meta_data[2]
                         payload = meta_data[3:]
                         track.ga_events.append(GaEvent(subtype=subtype, payload=payload))
+                        track.ga_events[-1].event_delta = current_event_delta
 
                         # Ga-00 in Track 0: bar count
                         if track_index == 0 and subtype == 0x00:
@@ -390,6 +392,14 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
     )
 
 def note_length_from_rhythmic_class(rc, ppqn):
+    """
+    Convert rhythmic_class → musical duration.
+    Matches all observed SXQs:
+      (64, 63)  → quarter      → 960 ticks @ 960 PPQN
+      (64, 95)  → eighth       → 480
+      (64, 79)  → dotted eighth→ 720
+      (64, 111) → sixteenth    → 240
+    """
     if rc == (64, 63):   # quarter
         return ppqn
     if rc == (64, 95):   # 8th
@@ -481,29 +491,35 @@ def build_midi_from_sxq_meta(meta: SXQMetadata) -> bytes:
 
         events = []  # (tick, is_on, pitch, velocity)
 
-        for lane in tr.ga11_lanes:
-            # delta_ticks is now authoritative from Ga-11 payload
-            delta = lane.delta_ticks
-            if delta <= 0 or delta > ticks_per_bar:
-                print(f"[Track {tr.index}] skipping invalid lane delta={delta}")
-                continue
+        #
+        # NEW: Each Ga-11 event is ONE NOTE, not a lane.
+        #
+        abs_time = 0
 
-            # Note length comes from rhythmic_class
+        for ge, lane in zip(tr.ga_events, tr.ga11_lanes):
+            # event_delta is the VLQ before the FF 7F meta
+            # We must accumulate it to get absolute time.
+            # parse_sxq() already read event_delta, but we need to
+            # re-accumulate it here. So we store event_delta inside GaEvent.
+            # If not stored yet, add it now.
+            if not hasattr(ge, "event_delta"):
+                # parse_sxq did not store it; fix by adding storage there if needed.
+                # For now, assume event_delta was stored.
+                pass
+
+            abs_time += ge.event_delta
+
+            start = abs_time
             note_len = note_length_from_rhythmic_class(lane.rhythmic_class, ppqn)
+            end = start + note_len
 
             print(
-                f"[Ga11 lane] pitch={lane.pitch}, vel={lane.velocity}, "
-                f"delta={delta}, note_len={note_len}"
+                f"[Ga11 note] pitch={lane.pitch}, vel={lane.velocity}, "
+                f"start={start}, len={note_len}, rc={lane.rhythmic_class}"
             )
 
-            # Generate notes across the bar
-            tcur = 0
-            while tcur < ticks_per_bar:
-                events.append((tcur, True, lane.pitch, lane.velocity))
-                off_tick = tcur + note_len
-                if off_tick <= ticks_per_bar:
-                    events.append((off_tick, False, lane.pitch, 0))
-                tcur += delta
+            events.append((start, True, lane.pitch, lane.velocity))
+            events.append((end, False, lane.pitch, 0))
 
         # Sort events: time, then note-off before note-on at same tick
         events.sort(key=lambda e: (e[0], 0 if not e[1] else 1))
