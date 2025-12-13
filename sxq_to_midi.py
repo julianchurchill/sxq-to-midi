@@ -300,25 +300,33 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
 
                         # Ga-11: lane definitions
                         elif subtype == 0x11:
-                            # Known mapping from your experiments:
-                            #  payload[1] = pitch_byte
-                            #  payload[2] = velocity
-                            #  payload[6:8] = rhythmic_class
-                            if len(payload) >= 8:
+                            # Ga-11: note lane
+                            # Mapping confirmed from multiple SXQs:
+                            #  payload[1]  = pitch_byte
+                            #  payload[2]  = velocity
+                            #  payload[6]  = rhythmic_class byte 1 (0x40)
+                            #  payload[7]  = rhythmic_class byte 2 (grid id)
+                            #  payload[8]  = subdivision byte (encodes duration/grid)
+                            #
+                            # delta_ticks = (subdivision + 1) * 120   at 960 PPQN
+                            if len(payload) >= 9:
                                 pitch_byte = payload[1]
                                 velocity = payload[2]
                                 midi_note = pitch_byte - 12
                                 rhythmic_class = (payload[6], payload[7])
 
+                                subdivision = payload[8]
+                                delta_ticks = (subdivision + 1) * 120
+
                                 lane = Ga11Lane(
                                     pitch=midi_note,
                                     velocity=velocity,
-                                    delta_ticks=0,
+                                    delta_ticks=delta_ticks,
                                     rhythmic_class=rhythmic_class,
                                 )
                                 track.ga11_lanes.append(lane)
-                                print(f"    [Ga11] pitch={midi_note}, vel={velocity}, "
-                                      f"rhythmic_class={rhythmic_class}, payload_len={len(payload)}")
+                                print(f"    [Ga11] pitch={midi_note}, vel={velocity}, delta_ticks={delta_ticks}, "
+                                      f"rhythmic_class={rhythmic_class}, subdivision={subdivision}, payload_len={len(payload)}")
 
                         # other Ga subtypes: we just keep them raw for now.
 
@@ -399,14 +407,6 @@ def build_midi_from_sxq_meta(meta: SXQMetadata) -> bytes:
     """
     ppqn = meta.ppqn
 
-    # Determine sequence length in ticks
-    if meta.sequence.sequence_ticks is not None:
-        seq_len_ticks = meta.sequence.sequence_ticks
-    else:
-        # Fallback: if we somehow don't have sequence_ticks, assume 4 bars
-        ticks_per_bar = meta.sequence.ticks_per_bar or (4 * ppqn)
-        seq_len_ticks = 4 * ticks_per_bar
-
     ticks_per_bar = meta.sequence.ticks_per_bar or (4 * ppqn)
 
     # Tempo
@@ -477,26 +477,28 @@ def build_midi_from_sxq_meta(meta: SXQMetadata) -> bytes:
         events = []  # (tick, is_on, pitch, velocity)
 
         for lane in tr.ga11_lanes:
-            steps = steps_from_rhythmic_class(lane.rhythmic_class)
-            if steps is None:
-                print(f"[Track {t.index}] skipping lane with unknown rhythmic_class={lane.rhythmic_class}")
+            # delta_ticks is now authoritative from Ga-11 payload
+            delta = lane.delta_ticks
+            if delta <= 0 or delta > ticks_per_bar:
+                print(f"[Track {tr.index}] skipping invalid lane delta={delta}")
                 continue
 
-            delta_ticks = ticks_per_bar // steps
-            note_len = delta_ticks  # or finer heuristic if you like
+            # Note length = delta (no overlap)
+            note_len = delta
 
             print(
-                f"[Ga11 lane] pitch={lane.pitch} vel={lane.velocity} "
-                f"rc={lane.rhythmic_class} steps={steps} delta={delta_ticks}"
+                f"[Ga11 lane] pitch={lane.pitch}, vel={lane.velocity}, "
+                f"delta={delta}, note_len={note_len}"
             )
 
+            # Generate notes across the bar
             tcur = 0
             while tcur < ticks_per_bar:
                 events.append((tcur, True, lane.pitch, lane.velocity))
                 off_tick = tcur + note_len
                 if off_tick <= ticks_per_bar:
                     events.append((off_tick, False, lane.pitch, 0))
-                tcur += delta_ticks
+                tcur += delta
 
         # Sort events: time, then note-off before note-on at same tick
         events.sort(key=lambda e: (e[0], 0 if not e[1] else 1))
