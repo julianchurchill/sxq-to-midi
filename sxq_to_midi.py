@@ -389,6 +389,17 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
         tracks=sxq_tracks,
     )
 
+def note_length_from_rhythmic_class(rc, ppqn):
+    if rc == (64, 63):   # quarter
+        return ppqn
+    if rc == (64, 95):   # 8th
+        return ppqn // 2
+    if rc == (64, 79):   # dotted 8th
+        return (ppqn * 3) // 4
+    if rc == (64, 111):  # 16th
+        return ppqn // 4
+    return ppqn // 8     # fallback
+
 ###############################################################################
 # Build MIDI from parsed SXQ
 ###############################################################################
@@ -477,8 +488,8 @@ def build_midi_from_sxq_meta(meta: SXQMetadata) -> bytes:
                 print(f"[Track {tr.index}] skipping invalid lane delta={delta}")
                 continue
 
-            # Note length = delta (no overlap)
-            note_len = delta
+            # Note length comes from rhythmic_class
+            note_len = note_length_from_rhythmic_class(lane.rhythmic_class, ppqn)
 
             print(
                 f"[Ga11 lane] pitch={lane.pitch}, vel={lane.velocity}, "
