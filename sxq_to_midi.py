@@ -179,18 +179,6 @@ def lane_note_length_ticks_from_spacing(lane, ppqn, ticks_per_bar):
 
     return note_len, steps_per_bar
 
-def log_lane_rhythm_info(lane: Ga11Lane,
-                         ticks_per_bar: int,
-                         note_len: int,
-                         steps_per_bar: float):
-    print(
-        f"[Ga11] pitch={lane.pitch:3d}  vel={lane.velocity:3d}  "
-        f"delta={lane.delta_ticks:4d}  "
-        f"rhythmic_class={lane.rhythmic_class}  "
-        f"steps_per_bar={steps_per_bar:5.2f}  "
-        f"note_len={note_len:4d}"
-    )
-
 ###############################################################################
 # SXQ parsing
 ###############################################################################
@@ -422,8 +410,6 @@ def build_midi_from_sxq_meta(meta: SXQMetadata) -> bytes:
     - One track per SXQ track, containing Ga-11 → MIDI notes
     """
     ppqn = meta.ppqn
-
-    ticks_per_bar = meta.sequence.ticks_per_bar or (4 * ppqn)
 
     # Tempo
     if meta.sequence.mpq is not None:
