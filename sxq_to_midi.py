@@ -183,7 +183,7 @@ def lane_note_length_ticks_from_spacing(lane, ppqn, ticks_per_bar):
 # SXQ parsing
 ###############################################################################
 
-def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
+def parse_sxq(sxq_bytes: bytes, verbose = None) -> SXQMetadata:
     """
     Parse SXQ (MIDI-container) file into structured metadata:
     - Header (format, num tracks, ppqn)
@@ -316,7 +316,7 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
                                     event_delta=current_event_delta
                                 )
                                 track.ga11_lanes.append(lane)
-                                print(f"    [Ga11] pitch={midi_note}, vel={velocity}, delta_ticks={delta_ticks}, "
+                                if verbose : print(f"    [Ga11] pitch={midi_note}, vel={velocity}, delta_ticks={delta_ticks}, "
                                       f"rhythmic_class={rhythmic_class}, subdivision={subdivision}, payload_len={len(payload)}")
 
                         # other Ga subtypes: we just keep them raw for now.
@@ -334,7 +334,7 @@ def parse_sxq(sxq_bytes: bytes) -> SXQMetadata:
                 else:
                     track_offset += 2
 
-        print(
+        if verbose : print(
             f"[Track {track_index}] done: name={track.name}, "
             f"Ga events={len(track.ga_events)}, Ga-11 lanes={len(track.ga11_lanes)}"
         )
@@ -403,7 +403,7 @@ def note_length_from_rhythmic_class(rc, ppqn):
 # Build MIDI from parsed SXQ
 ###############################################################################
 
-def build_midi_from_sxq_meta(meta: SXQMetadata) -> bytes:
+def build_midi_from_sxq_meta(meta: SXQMetadata, verbose = None) -> bytes:
     """
     Build a Standard MIDI File (Format 1) from parsed SXQ metadata.
     - Track 0: master tempo + time signature + sequence name
@@ -494,7 +494,7 @@ def build_midi_from_sxq_meta(meta: SXQMetadata) -> bytes:
             note_len = note_length_from_rhythmic_class(lane.rhythmic_class, ppqn)
             end = start + note_len
 
-            print(
+            if verbose: print(
                 f"[Ga11 note] pitch={lane.pitch}, vel={lane.velocity}, "
                 f"start={start}, len={note_len}, rc={lane.rhythmic_class}"
             )
@@ -548,11 +548,15 @@ def build_midi_from_sxq_meta(meta: SXQMetadata) -> bytes:
 # Top-level convenience
 ###############################################################################
 
+def sxq_bytes_to_midi_bytes(sxq_bytes: bytes, verbose = None) -> bytes:
+    meta = parse_sxq(sxq_bytes, verbose)
+    return build_midi_from_sxq_meta(meta, verbose)
+
 def sxq_to_midi_full(sxq_path: str, midi_path: str):
     with open(sxq_path, "rb") as f:
         sxq_bytes = f.read()
 
-    meta = parse_sxq(sxq_bytes)
+    meta = parse_sxq(sxq_bytes, verbose = True)
 
     print("SXQ parsed:")
     print(f"  Format: {meta.format_type}")
@@ -570,11 +574,15 @@ def sxq_to_midi_full(sxq_path: str, midi_path: str):
     for tr in meta.tracks:
         print(f"  Track {tr.index}: name={tr.name}, Ga-11 lanes={len(tr.ga11_lanes)}, Ga events={len(tr.ga_events)}")
 
-    midi_bytes = build_midi_from_sxq_meta(meta)
+    midi_bytes = build_midi_from_sxq_meta(meta, verbose = True)
 
     with open(midi_path, "wb") as f:
         f.write(midi_bytes)
 
     print(f"\nWrote MIDI: {midi_path}")
 
-sxq_to_midi_full(sys.argv[1], sys.argv[2])
+def main():
+    sxq_to_midi_full(sys.argv[1], sys.argv[2])
+
+if __name__ == '__main__':
+    main()
