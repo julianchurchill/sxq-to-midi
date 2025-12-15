@@ -29,7 +29,7 @@ A python script generated with AI to convert SXQ files to MIDI.
 
 # TODO - sxq_to_midi.py
 
-- Handle parallel notes with different pitches
+- Handle dotted 16ths, dotted quarters, dotted halfs (dotted 8ths done)
 - Handle tempo (not in a special track 0 conductor track if possible)
 - Handle time signature (not in a special track 0 conductor track if possible)
 - Handle triplets
@@ -37,5 +37,6 @@ A python script generated with AI to convert SXQ files to MIDI.
 
 # Done
 
+- Handle parallel notes with different pitches
 - Ensure variable velocity is being converted
 - Acceptance tests - examples of SXQ to MIDI file conversion

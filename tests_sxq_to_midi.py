@@ -22,6 +22,7 @@ class AcceptanceTests(unittest.TestCase):
 
     @parameterized.expand([
         ('8thAnd16thNotesAlternatingOn8thNote1bar120bpm127velocity-ASharp'),
+        ('8thnotes1bar120bpm127velocity-A3AndASharp3'),
         ('8thnotes1bar120bpm127velocity-ASharp'),
         ('8thnotes4bars120bpm127velocity-ASharp'),
         ('8thnotes8bars120bpm127velocity-ASharp'),
