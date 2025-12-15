@@ -19,10 +19,18 @@ A python script generated with AI to convert SXQ files to MIDI.
 
 `python .\sxq_to_midi.py .\input.sxq output.mid`
 
+## Run Unit Tests
+
+`python -m unittest`
+
 # TODO - sxq_to_midi.py
 
+- ... Acceptance tests - examples of SXQ to MIDI file conversion
 - Ensure variable velocity is being converted
 - Handle parallel notes with different pitches
 - Handle tempo (not in a special track 0 conductor track if possible)
 - Handle time signature (not in a special track 0 conductor track if possible)
 - Handle triplets
+- Unit tests
+
+# Done
