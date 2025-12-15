@@ -1,4 +1,5 @@
 import unittest
+from parameterized import parameterized
 from sxq_to_midi import sxq_bytes_to_midi_bytes
 
 class AcceptanceTests(unittest.TestCase):
@@ -19,9 +20,14 @@ class AcceptanceTests(unittest.TestCase):
         print(f"  Hex MIDI2: {midi2_bytes_printable}")
         print(f"             " + "   " * (index - clampedStartMIDI1) + "^^")
 
-    def test_sxq_converts_to_midi(self):
-        sxq_filename = 'test-sxq-files/8thnotes1bar120bpm127velocity-ASharp.sxq'
-        midi_filename = 'test-midi-files/8thnotes1bar120bpm127velocity-ASharp.mid'
+    @parameterized.expand([
+        ('8thAnd16thNotesAlternatingOn8thNote1bar120bpm127velocity-ASharp'),
+        ('8thnotes1bar120bpm127velocity-ASharp'),
+        ('8thnotes4bars120bpm127velocity-ASharp'),
+    ])
+    def test_sxq_converts_to_midi(self, filename):
+        sxq_filename = f'test-sxq-files/{filename}.sxq'
+        midi_filename = f'test-midi-files/{filename}.mid'
         with open(sxq_filename, "rb") as sxq_file, open(midi_filename, "rb") as expected_midi_file:
             sxq_bytes = sxq_file.read()
             expected_midi_bytes = expected_midi_file.read()

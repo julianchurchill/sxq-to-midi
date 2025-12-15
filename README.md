@@ -19,6 +19,10 @@ A python script generated with AI to convert SXQ files to MIDI.
 
 `python .\sxq_to_midi.py .\input.sxq output.mid`
 
+## Install Unit Test Dependencies
+
+`pip install parameterized`
+
 ## Run Unit Tests
 
 `python -m unittest`
