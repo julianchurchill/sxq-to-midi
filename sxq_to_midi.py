@@ -52,7 +52,7 @@ class GaEvent:
 
 
 @dataclass
-class Ga11Lane:
+class Ga11Note:
     pitch: int
     velocity: int
     rhythmic_class: Tuple[int, int]
@@ -64,7 +64,7 @@ class SXQTrack:
     index: int
     name: Optional[str] = None
     ga_events: List[GaEvent] = field(default_factory=list)
-    ga11_lanes: List[Ga11Lane] = field(default_factory=list)
+    ga11_notes: List[Ga11Note] = field(default_factory=list)
 
 
 @dataclass
@@ -165,7 +165,7 @@ def parse_sxq(sxq_bytes: bytes, verbose = None) -> SXQMetadata:
     Parse SXQ (MIDI-container) file into structured metadata:
     - Header (format, num tracks, ppqn)
     - Sequence meta (tempo, TS, length in ticks/bars)
-    - Tracks with Ga events and Ga-11 lanes
+    - Tracks with Ga events and Ga-11 notes
     """
     offset = 0
     file_len = len(sxq_bytes)
@@ -265,9 +265,9 @@ def parse_sxq(sxq_bytes: bytes, verbose = None) -> SXQMetadata:
                             if bar_count is not None:
                                 seq_meta.bar_count_from_ga00 = bar_count
 
-                        # Ga-11: lane definitions
+                        # Ga-11: note definitions
                         elif subtype == 0x11:
-                            # Ga-11: note lane
+                            # Ga-11: note
                             # Mapping confirmed from multiple SXQs:
                             #  payload[1]  = pitch_byte
                             #  payload[2]  = velocity
@@ -279,13 +279,13 @@ def parse_sxq(sxq_bytes: bytes, verbose = None) -> SXQMetadata:
                                 midi_note = pitch_byte - 12
                                 rhythmic_class = (payload[6], payload[7])
 
-                                lane = Ga11Lane(
+                                note = Ga11Note(
                                     pitch=midi_note,
                                     velocity=velocity,
                                     rhythmic_class=rhythmic_class,
                                     event_delta=current_event_delta
                                 )
-                                track.ga11_lanes.append(lane)
+                                track.ga11_notes.append(note)
                                 if verbose : print(f"    [Ga11] pitch={midi_note}, vel={velocity}, "
                                       f"rhythmic_class={rhythmic_class}, payload_len={len(payload)}")
 
@@ -306,7 +306,7 @@ def parse_sxq(sxq_bytes: bytes, verbose = None) -> SXQMetadata:
 
         if verbose : print(
             f"[Track {track_index}] done: name={track.name}, "
-            f"Ga events={len(track.ga_events)}, Ga-11 lanes={len(track.ga11_lanes)}"
+            f"Ga events={len(track.ga_events)}, Ga-11 notes={len(track.ga11_notes)}"
         )
         sxq_tracks.append(track)
         track_index += 1
@@ -439,7 +439,7 @@ def build_midi_from_sxq_meta(meta: SXQMetadata, verbose = None) -> bytes:
         track_bytes += write_vlq(len(tn_bytes))
         track_bytes += tn_bytes
 
-        if not tr.ga11_lanes:
+        if not tr.ga11_notes:
             # No Ga-11 → no notes, just end-of-track
             track_bytes += write_vlq(0)
             track_bytes += bytes([0xFF, 0x2F, 0x00])
@@ -453,24 +453,24 @@ def build_midi_from_sxq_meta(meta: SXQMetadata, verbose = None) -> bytes:
         #
         abs_time = 0
 
-        for lane in tr.ga11_lanes:
+        for note in tr.ga11_notes:
             # event_delta is the VLQ before the FF 7F meta
             # We must accumulate it to get absolute time.
             # parse_sxq() already read event_delta, but we need to
             # re-accumulate it here.
-            abs_time += lane.event_delta
+            abs_time += note.event_delta
 
             start = abs_time
-            note_len = note_length_from_rhythmic_class(lane.rhythmic_class, ppqn)
+            note_len = note_length_from_rhythmic_class(note.rhythmic_class, ppqn)
             end = start + note_len
 
             if verbose: print(
-                f"[Ga11 note] pitch={lane.pitch}, vel={lane.velocity}, "
-                f"start={start}, len={note_len}, rc={lane.rhythmic_class}"
+                f"[Ga11 note] pitch={note.pitch}, vel={note.velocity}, "
+                f"start={start}, len={note_len}, rc={note.rhythmic_class}"
             )
 
-            events.append((start, True, lane.pitch, lane.velocity))
-            events.append((end, False, lane.pitch, 0))
+            events.append((start, True, note.pitch, note.velocity))
+            events.append((end, False, note.pitch, 0))
 
         # Sort events: time, then note-off before note-on at same tick
         events.sort(key=lambda e: (e[0], 0 if not e[1] else 1))
@@ -542,7 +542,7 @@ def sxq_to_midi_full(sxq_path: str, midi_path: str):
     print(f"    Bars (computed):         {meta.sequence.bars}")
 
     for tr in meta.tracks:
-        print(f"  Track {tr.index}: name={tr.name}, Ga-11 lanes={len(tr.ga11_lanes)}, Ga events={len(tr.ga_events)}")
+        print(f"  Track {tr.index}: name={tr.name}, Ga-11 notes={len(tr.ga11_notes)}, Ga events={len(tr.ga_events)}")
 
     midi_bytes = build_midi_from_sxq_meta(meta, verbose = True)
 
