@@ -24,6 +24,16 @@ class AcceptanceTests(unittest.TestCase):
         ('8thAnd16thNotesAlternatingOn8thNote1bar120bpm127velocity-ASharp'),
         ('8thnotes1bar120bpm127velocity-ASharp'),
         ('8thnotes4bars120bpm127velocity-ASharp'),
+        ('8thnotes8bars120bpm127velocity-ASharp'),
+        ('16thnotes4bars120bpm101velocity-ASharp'),
+        ('16thnotes4bars120bpm127velocity-A3'),
+        ('16thnotes4bars120bpm127velocity-ASharp'),
+        ('16thnotes4bars120bpm127velocity-D5'),
+        ('dotted8thNotes1bar120bpm127velocity-ASharp'),
+        ('dottedQuarterNotes4bars120bpm127velocity-ASharp'),
+        ('halfNotes4bars120bpm127velocity-ASharp'),
+        ('quarterNotes1bar120bpm127velocity-ASharp'),
+        ('quarterNotes4bars120bpm127velocity-ASharp'),
     ])
     def test_sxq_converts_to_midi(self, filename):
         sxq_filename = f'test-sxq-files/{filename}.sxq'
