@@ -276,7 +276,7 @@ def parse_sxq(sxq_bytes: bytes, verbose = None) -> SXQMetadata:
                             if len(payload) >= 9:
                                 pitch_byte = payload[1]
                                 velocity = payload[2]
-                                midi_note = pitch_byte - 12
+                                midi_note = pitch_byte
                                 rhythmic_class = (payload[6], payload[7])
 
                                 note = Ga11Note(
