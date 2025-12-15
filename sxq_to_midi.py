@@ -55,7 +55,6 @@ class GaEvent:
 class Ga11Lane:
     pitch: int
     velocity: int
-    delta_ticks: int
     rhythmic_class: Tuple[int, int]
     event_delta: int
 
@@ -156,28 +155,6 @@ def extract_bar_count_from_ga00(payload: bytes) -> Optional[int]:
         return None
 
     return bar_count
-
-def lane_note_length_ticks_from_spacing(lane, ppqn, ticks_per_bar):
-    delta = lane.delta_ticks
-    if delta <= 0:
-        return ticks_per_bar // 16, None
-
-    # Compute steps per bar
-    steps_per_bar = ticks_per_bar / delta
-
-    # Candidate grids
-    grids = [1, 2, 3, 4, 6, 8, 12, 16, 24, 32]
-
-    # Snap to nearest grid
-    best = min(grids, key=lambda g: abs(steps_per_bar - g))
-
-    # Compute note length
-    note_len = ticks_per_bar // best
-
-    # Prevent overlap
-    note_len = min(note_len, delta)
-
-    return note_len, steps_per_bar
 
 ###############################################################################
 # SXQ parsing
@@ -296,28 +273,21 @@ def parse_sxq(sxq_bytes: bytes, verbose = None) -> SXQMetadata:
                             #  payload[2]  = velocity
                             #  payload[6]  = rhythmic_class byte 1 (0x40)
                             #  payload[7]  = rhythmic_class byte 2 (grid id)
-                            #  payload[8]  = subdivision byte (encodes duration/grid)
-                            #
-                            # delta_ticks = (subdivision + 1) * 120   at 960 PPQN
                             if len(payload) >= 9:
                                 pitch_byte = payload[1]
                                 velocity = payload[2]
                                 midi_note = pitch_byte - 12
                                 rhythmic_class = (payload[6], payload[7])
 
-                                subdivision = payload[8]
-                                delta_ticks = (subdivision + 1) * 120
-
                                 lane = Ga11Lane(
                                     pitch=midi_note,
                                     velocity=velocity,
-                                    delta_ticks=delta_ticks,
                                     rhythmic_class=rhythmic_class,
                                     event_delta=current_event_delta
                                 )
                                 track.ga11_lanes.append(lane)
-                                if verbose : print(f"    [Ga11] pitch={midi_note}, vel={velocity}, delta_ticks={delta_ticks}, "
-                                      f"rhythmic_class={rhythmic_class}, subdivision={subdivision}, payload_len={len(payload)}")
+                                if verbose : print(f"    [Ga11] pitch={midi_note}, vel={velocity}, "
+                                      f"rhythmic_class={rhythmic_class}, payload_len={len(payload)}")
 
                         # other Ga subtypes: we just keep them raw for now.
 
