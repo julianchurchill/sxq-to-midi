@@ -354,11 +354,14 @@ def note_length_from_rhythmic_class(rc, ppqn):
     """
     Convert rhythmic_class → musical duration.
     Matches all observed SXQs:
-      (64, 63)  → quarter      → 960 ticks @ 960 PPQN
-      (64, 95)  → eighth       → 480
-      (64, 79)  → dotted eighth→ 720
-      (64, 111) → sixteenth    → 240
+      (64, 31)  → dotted quarter → 1440 ticks @ 960 PPQN
+      (64, 63)  → quarter        → 960 ticks @ 960 PPQN
+      (64, 95)  → eighth         → 480
+      (64, 79)  → dotted eighth  → 720
+      (64, 111) → sixteenth      → 240
     """
+    if rc == (64, 31):   # dotted quarter
+        return (ppqn * 3) // 2
     if rc == (64, 63):   # quarter
         return ppqn
     if rc == (64, 95):   # 8th
