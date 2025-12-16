@@ -55,7 +55,7 @@ class GaEvent:
 class Ga11Note:
     pitch: int
     velocity: int
-    rhythmic_class: Tuple[int, int]
+    rhythmic_class: Tuple[int, int, int]
     event_delta: int
 
 
@@ -273,11 +273,12 @@ def parse_sxq(sxq_bytes: bytes, verbose = None) -> SXQMetadata:
                             #  payload[2]  = velocity
                             #  payload[6]  = rhythmic_class byte 1 (0x40)
                             #  payload[7]  = rhythmic_class byte 2 (grid id)
+                            #  payload[8]  = rhythmic_class byte 3 (subdivision)
                             if len(payload) >= 9:
                                 pitch_byte = payload[1]
                                 velocity = payload[2]
                                 midi_note = pitch_byte
-                                rhythmic_class = (payload[6], payload[7])
+                                rhythmic_class = (payload[6], payload[7], payload[8])
 
                                 note = Ga11Note(
                                     pitch=midi_note,
@@ -352,28 +353,24 @@ def parse_sxq(sxq_bytes: bytes, verbose = None) -> SXQMetadata:
 
 def note_length_from_rhythmic_class(rc, ppqn):
     """
-    Convert rhythmic_class → musical duration.
-    Matches all observed SXQs:
-      (64, 31)  → dotted quarter → 1440 ticks @ 960 PPQN
-      (64, 63)  → quarter        → 960 ticks @ 960 PPQN
-      (64, 95)  → eighth         → 480
-      (64, 79)  → dotted eighth  → 720
-      (64, 111) → sixteenth      → 240
-      (64, 127) → half note      → 2 * ppqn
+    Resolve note length using the full 3-byte rhythmic class:
+        (rc1, rc2, rc3)
     """
-    if rc == (64, 31):   # dotted quarter
-        return (ppqn * 3) // 2
-    if rc == (64, 63):   # quarter
-        return ppqn
-    if rc == (64, 95):   # 8th
-        return ppqn // 2
-    if rc == (64, 79):   # dotted 8th
-        return (ppqn * 3) // 4
-    if rc == (64, 111):  # 16th
-        return ppqn // 4
-    if rc == (64, 127):  # half
-        return ppqn * 2
-    return ppqn // 8     # fallback
+
+    table = {
+        (64, 31, 11):  (ppqn * 3) // 2, # dotted quarter
+        (64, 63, 7):   ppqn,            # quarter
+        (64, 79, 5):  (ppqn * 3) // 4,  # dotted eighth
+        (64, 95, 3):   ppqn // 2,       # eighth
+        (64, 111, 1):  ppqn // 4,       # sixteenth
+        (64, 127, 14): ppqn * 2,        # half
+        (64, 127, 29): ppqn * 4,        # whole
+    }
+
+    if rc in table:
+        return table[rc]
+
+    return ppqn // 8     # fallback to a 32nd
 
 ###############################################################################
 # Build MIDI from parsed SXQ
