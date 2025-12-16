@@ -367,6 +367,7 @@ def note_length_from_rhythmic_class(rc, ppqn):
         (64, 79, 5):  (ppqn * 3) // 4,  # dotted eighth
         # (64, 79, 20): (ppqn * 3) // 4,  # what is a 79, 20 (4F, 14)?  A half + an eighth? A half note tied to an 8th?
         (64, 95, 3):   ppqn // 2,       # eighth
+        (64, 95, 18):  (ppqn * 5) // 2, # half tied eighth (10x16ths)
         (64, 111, 1):  ppqn // 4,       # sixteenth
         (64, 111, 16): (ppqn * 9) // 4, # half tied sixteenth (9x16ths)
         (64, 127, 14): ppqn * 2,        # half
