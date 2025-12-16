@@ -358,8 +358,9 @@ def note_length_from_rhythmic_class(rc, ppqn):
     """
 
     table = {
+        (64, 15, 13):  (ppqn * 7) // 4, # quarter tied dotted eighth (7x16ths)
         (64, 31, 11):  (ppqn * 3) // 2, # dotted quarter
-        (64, 47, 9):   (ppqn * 5) // 4, # quarter tied 16th (5x16ths)
+        (64, 47, 9):   (ppqn * 5) // 4, # quarter tied sixteenth (5x16ths)
         # (64, 49, 12):  (ppqn * 3) // 4, # what is a 49, 12 (31, 0C)?  A dotted quarter + a 16th? A double dotted quarter?
         (64, 63, 7):   ppqn,            # quarter
         (64, 63, 22):  ppqn * 3,        # dotted half
