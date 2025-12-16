@@ -359,6 +359,7 @@ def note_length_from_rhythmic_class(rc, ppqn):
       (64, 95)  → eighth         → 480
       (64, 79)  → dotted eighth  → 720
       (64, 111) → sixteenth      → 240
+      (64, 127) → half note      → 2 * ppqn
     """
     if rc == (64, 31):   # dotted quarter
         return (ppqn * 3) // 2
@@ -370,6 +371,8 @@ def note_length_from_rhythmic_class(rc, ppqn):
         return (ppqn * 3) // 4
     if rc == (64, 111):  # 16th
         return ppqn // 4
+    if rc == (64, 127):  # half
+        return ppqn * 2
     return ppqn // 8     # fallback
 
 ###############################################################################
