@@ -29,7 +29,7 @@ A python script generated with AI to convert SXQ files to MIDI.
 
 # TODO - sxq_to_midi.py
 
-- ... Do tied notes - half tied dotted 8th (11x16ths), half tied quarter tied 16th (13x16ths), half tied dotted quarter (14x16ths), half tied quarter tied dotted 8th (15x16ths)
+- ... Do tied notes - half tied quarter tied 16th (13x16ths), half tied dotted quarter (14x16ths), half tied quarter tied dotted 8th (15x16ths)
 - Horns in latest-broken.sxq are converted at too short a note length - investigate and fix. Is it because they were half/dotted halfs/whole notes?
     - First note in latest-broken.sxq horns is 79, 20 (4F, 14), possibly a half note tied to an 8th?
     - Third note in latest-broken.sxq horns is 49, 12 (31, 0C), possibly a double dotted quarter?
@@ -45,7 +45,7 @@ A python script generated with AI to convert SXQ files to MIDI.
 
 # Done
 
-- Handle tied notes - quarter tied 16th (5x16ths), quarter tied dotted 8th (7x16ths), half tied 16th (9x16ths), half tied 8th (10x16ths)
+- Handle tied notes - quarter tied 16th (5x16ths), quarter tied dotted 8th (7x16ths), half tied 16th (9x16ths), half tied 8th (10x16ths), half tied dotted 8th (11x16ths)
 - Handle dotted quarters, halfs, whole, dotted halfs, dotted whole
 - Handle parallel notes with different pitches
 - Ensure variable velocity is being converted
