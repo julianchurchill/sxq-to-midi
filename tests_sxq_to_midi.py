@@ -30,6 +30,7 @@ class AcceptanceTests(unittest.TestCase):
         ('8thnotes4bars120bpm127velocity-ASharp'),
         ('8thnotes8bars120bpm127velocity-ASharp'),
         ('8thTied32ndnotes1bar120bpm127velocity-ASharp'),
+        ('8thTiedDotted16thnotes1bar120bpm127velocity-ASharp'),
         ('16thnotes4bars120bpm101velocity-ASharp'),
         ('16thnotes4bars120bpm127velocity-A3'),
         ('16thnotes4bars120bpm127velocity-ASharp'),
