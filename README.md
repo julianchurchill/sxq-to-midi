@@ -29,7 +29,7 @@ A python script generated with AI to convert SXQ files to MIDI.
 
 # TODO - sxq_to_midi.py
 
-- Handle 2 bar, 3 bar and 4 bar notes
+- ... Handle 2 bar, 3 bar and 4 bar notes
 - Handle notes tied with 32nds
 - Is there a pattern to the note length bytes that means we can avoid a lookup table and use a formula instead?
 - Horns in broken.sxq are converted at too short a note length - investigate and fix. Is it because they were half/dotted halfs/whole notes?

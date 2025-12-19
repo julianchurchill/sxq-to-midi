@@ -378,6 +378,7 @@ def note_length_from_rhythmic_class(rc, ppqn):
         (64, 127, 14): ppqn * 2,        # half
         (64, 127, 29): ppqn * 4,        # whole
         (64, 127, 44): ppqn * 6,        # dotted whole
+        (64, 127, 59): ppqn * 8,        # 2-bar note (8 quarters)
     }
 
     if rc in table:

@@ -21,6 +21,7 @@ class AcceptanceTests(unittest.TestCase):
         print(f"             " + "   " * (index - clampedStartMIDI1) + "^^")
 
     @parameterized.expand([
+        ('2BarNotes4bars120bpm127velocity-ASharp'),
         ('8thAnd16thNotesAlternatingOn8thNote1bar120bpm127velocity-ASharp'),
         ('8thnotes1bar120bpm127velocity-A3AndASharp3'),
         ('8thnotes1bar120bpm127velocity-ASharp'),
