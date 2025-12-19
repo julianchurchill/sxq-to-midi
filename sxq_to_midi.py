@@ -381,6 +381,7 @@ def note_length_from_rhythmic_class(rc, ppqn):
     if rc in table:
         return table[rc]
 
+    print(f" * Unrecognized note length: {rc}")
     return ppqn // 8     # fallback to a 32nd
 
 ###############################################################################
