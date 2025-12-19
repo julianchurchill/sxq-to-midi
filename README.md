@@ -30,7 +30,7 @@ A python script generated with AI to convert SXQ files to MIDI.
 # TODO - sxq_to_midi.py
 
 - 16th notes on a 32nd note resolution grid (should set Pules Per Quarter Note to 960*2=1920)
-- Handle 32nd notes
+- Preserve 32nd note resolution grid from SXQ file to MIDI
 - Handle dotted 16ths
 - Handle 2 bar, 3 bar and 4 bar notes
 - Handle notes tied with 32nds
@@ -46,6 +46,7 @@ A python script generated with AI to convert SXQ files to MIDI.
 
 # Done
 
+- Handle 32nd notes
 - Handle tied notes - quarter tied 16th (5x16ths), quarter tied dotted 8th (7x16ths), half tied 16th (9x16ths), half tied 8th (10x16ths), half tied dotted 8th (11x16ths), half tied quarter tied 16th (13x16ths), half tied dotted quarter (14x16ths), half tied quarter tied dotted 8th (15x16ths)
 - Handle dotted quarters, halfs, whole, dotted halfs, dotted whole
 - Handle parallel notes with different pitches
