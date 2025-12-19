@@ -351,11 +351,39 @@ def parse_sxq(sxq_bytes: bytes, verbose = None) -> SXQMetadata:
         tracks=sxq_tracks,
     )
 
-def note_length_from_rhythmic_class(rc, ppqn):
+def resolve_long_duration(rc, ppqn) -> None | int:
+    """
+    Handles rc2 == 127 (long-duration family):
+    whole, dotted whole, 2 bars, 3 bars, 4 bars, etc.
+    """
+    rc1, rc2, subdivision = rc
+
+    if rc1 != 64 or rc2 != 127:
+        return None  # not in this family
+
+    # Valid known subvalues: 14, 29, 44, 59, 74, 89, 104, 119, ...
+    # Each +15 subdivision corresponds to +2 quarter notes.
+    if subdivision < 14:
+        return None  # out of range for this family
+
+    delta = subdivision - 14
+    if delta % 15 != 0:
+        return None  # not on the expected grid; let table handle it
+
+    steps = delta // 15          # number of +2-quarter increments from half
+    quarter_units = 2 + steps * 2  # base half = 2 quarters
+
+    return quarter_units * ppqn
+
+
+def note_length_from_rhythmic_class(rc, ppqn) -> int:
     """
     Resolve note length using the full 3-byte rhythmic class:
         (rc1, rc2, rc3)
     """
+    length = resolve_long_duration(rc, ppqn)
+    if length is not None:
+        return length
 
     table = {
         (64, 15, 13):  (ppqn * 7) // 4, # quarter tied dotted eighth (7x16ths)
@@ -375,12 +403,13 @@ def note_length_from_rhythmic_class(rc, ppqn):
         (64, 111, 1):  ppqn // 4,       # sixteenth
         (64, 111, 16): (ppqn * 9) // 4, # half tied sixteenth (9x16ths)
         (64, 119, 0):  ppqn // 8,       # 32nd
-        (64, 127, 14): ppqn * 2,        # half
-        (64, 127, 29): ppqn * 4,        # whole
-        (64, 127, 44): ppqn * 6,        # dotted whole
-        (64, 127, 59): ppqn * 8,        # 2-bar note (8 quarters)
-        (64, 127, 89): ppqn * 12,       # 3 bars
-        (64, 127, 119): ppqn * 16,      # 4 bars
+        # handled in resolve_long_duration
+        # (64, 127, 14): ppqn * 2,        # half
+        # (64, 127, 29): ppqn * 4,        # whole
+        # (64, 127, 44): ppqn * 6,        # dotted whole
+        # (64, 127, 59): ppqn * 8,        # 2-bar note (8 quarters)
+        # (64, 127, 89): ppqn * 12,       # 3 bars
+        # (64, 127, 119): ppqn * 16,      # 4 bars
     }
 
     if rc in table:
