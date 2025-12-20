@@ -393,6 +393,7 @@ def note_length_from_rhythmic_class(rc, ppqn) -> int:
         (64, 31, 11):  (ppqn * 3) // 2, # dotted quarter
         (64, 31, 26):  (ppqn * 7) // 2, # half tied dotted quarter
         (64, 39, 10):  (ppqn * 11) // 8,# quarter tied dotted sixteenth
+        (64, 39, 25):  (ppqn * 27) // 8,# dotted half tied dotted sixteenth
         (64, 47, 9):   (ppqn * 5) // 4, # quarter tied sixteenth (5x16ths)
         (64, 47, 24):  (ppqn * 13) // 4,# half tied quarter tied sixteenth
         # (64, 49, 12):  (ppqn * 3) // 4, # what is a 49, 12 (31, 0C)?  A dotted quarter + a 16th? A double dotted quarter?
