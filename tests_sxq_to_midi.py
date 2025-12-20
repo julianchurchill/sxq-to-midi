@@ -42,6 +42,7 @@ class AcceptanceTests(unittest.TestCase):
         ('dottedHalfNotes4bars120bpm127velocity-ASharp'),
         ('dottedHalfTied8thTied32ndNotes4bars120bpm127velocity-ASharp'),
         ('dottedHalfTied32ndNotes4bars120bpm127velocity-ASharp'),
+        ('dottedHalfTiedDotted8thTied32ndNotes4bars120bpm127velocity-ASharp'),
         ('dottedHalfTiedDotted16thNotes4bars120bpm127velocity-ASharp'),
         ('dottedQuarterNotes1bar120bpm127velocity-ASharp'),
         ('dottedQuarterNotes4bars120bpm127velocity-ASharp'),
