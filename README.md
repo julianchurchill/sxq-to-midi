@@ -29,11 +29,11 @@ A python script generated with AI to convert SXQ files to MIDI.
 
 # TODO - sxq_to_midi.py
 
-- ... Handle notes tied with 32nds (including dotted 16ths)
-- Is there a pattern to the note length bytes that means we can avoid a lookup table and use a formula instead?
 - Horns in broken.sxq are converted at too short a note length - investigate and fix. Is it because they were half/dotted halfs/whole notes?
     - Third note in broken.sxq horns is 49, 12 (31, 0C), possibly a tied 32nd?
     - Other unknown notes are (15, 58), (35, 23), (46, 23), (70, 23), (71, 7), (73, 10), (84, 11), (100, 10)
+    - What class of note length have I missed? Triplets?
+- Is there a pattern to the note length bytes that means we can avoid a lookup table and use a formula instead?
 - Not all SXQ tracks are midi - don't export them as we run out of real midi track space in MPC Beats. What are they?
 - Handle track volume curve
 - Handle tempo (not in a special track 0 conductor track if possible)
@@ -43,6 +43,7 @@ A python script generated with AI to convert SXQ files to MIDI.
 
 # Done
 
+- Handle notes tied with 32nds (including dotted 16ths)
 - Handle 2 bar, 3 bar and 4 bar notes
 - Handle dotted 16ths
 - Preserve 32nd note resolution grid from SXQ file to MIDI - looks like this is in a different file, perhaps xpj, xal or project settings
