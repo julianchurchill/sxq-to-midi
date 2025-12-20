@@ -55,6 +55,7 @@ class AcceptanceTests(unittest.TestCase):
         ('quarterTied16thNotes1bar120bpm127velocity-ASharp'),
         ('quarterTied32ndNotes1bar120bpm127velocity-ASharp'),
         ('quarterTiedDotted8thNotes1bar120bpm127velocity-ASharp'),
+        ('quarterTiedDotted16thNotes1bar120bpm127velocity-ASharp'),
         ('wholeNotes4bars120bpm127velocity-ASharp')
     ])
     def test_sxq_converts_to_midi(self, filename):
