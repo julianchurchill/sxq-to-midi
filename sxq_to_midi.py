@@ -402,6 +402,7 @@ def note_length_from_rhythmic_class(rc, ppqn) -> int:
         (64, 51, 1):  (ppqn * 3) // 16, # dotted 32nd
         (64, 55, 8):  (ppqn * 9) // 8,  # quarter tied 32nd
         (64, 55, 23): (ppqn * 25) // 8, # dotted half tied 32nd
+        (64, 55, 38): (ppqn * 41) // 8, # whole tied quarter tied 32nd
         (64, 59, 0):   ppqn // 16,      # 64th
         (64, 63, 7):   ppqn,            # quarter
         (64, 63, 22):  ppqn * 3,        # dotted half
