@@ -401,6 +401,7 @@ def note_length_from_rhythmic_class(rc, ppqn) -> int:
         # (64, 49, 12):  (ppqn * 3) // 4, # what is a 49, 12 (31, 0C)?  AI thinks it a dotted quarter tied 32nd (but this would be the same as 23, 12)...
         (64, 55, 8):  (ppqn * 9) // 8,  # quarter tied 32nd
         (64, 55, 23): (ppqn * 25) // 8, # dotted half tied 32nd
+        (64, 59, 0):   ppqn // 16,      # 64th
         (64, 63, 7):   ppqn,            # quarter
         (64, 63, 22):  ppqn * 3,        # dotted half
         (64, 71, 6):  (ppqn * 7) // 8,  # eighth tied dotted sixteenth
