@@ -475,6 +475,7 @@ def note_length_from_ga11_table(rc, ppqn) -> None | int:
         (64, 71, 21): (ppqn * 23) // 8, # half tied dotted eighth tied 32nd
         (64, 71, 36): (ppqn * 39) // 8, # whole tied dotted eighth tied 32nd
         (64, 71, 51): (ppqn * 55) // 8, # dotted whole tied dotted eighth tied 32nd
+        (64, 75, 13): (ppqn * 29) // 16,# dotted quarter tied 16th tied 64th
         (64, 79, 5):  (ppqn * 3) // 4,  # dotted eighth
         (64, 79, 20): (ppqn * 11) // 4, # half tied dotted eighth (11x16ths)
         (64, 83, 12): (ppqn * 27) // 16,# dotted quarter tied dotted 32nd
