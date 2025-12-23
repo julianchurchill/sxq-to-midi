@@ -351,6 +351,59 @@ def parse_sxq(sxq_bytes: bytes, verbose = None) -> SXQMetadata:
         tracks=sxq_tracks,
     )
 
+FAMILY_DEFS_RC1_64 = {
+    # 16th-based micro family
+    # rc2 + 8*sub == 59
+    # quarters(s) = (s + 4) / 16  [you can tweak if you refine this ladder]
+    59: {
+        "denominator": 16,
+        "offset": 4,
+    },
+
+    # whole-note extension family
+    # rc2 + 8*sub == 359
+    # quarters(s) = (s + 3) / 8
+    359: {
+        "denominator": 8,
+        "offset": 3,
+    },
+
+    # dotted-whole extension family
+    # rc2 + 8*sub == 479
+    # quarters(s) = (s + 4) / 8
+    479: {
+        "denominator": 8,
+        "offset": 4,
+    },
+}
+
+def note_length_from_ga11_formula(rc, ppqn):
+    """
+    Formula-based resolver for rc1=64 rhythmic classes.
+    Returns ticks or None if the rc doesn't fit a known linear family.
+    """
+    rc1, rc2, subdivision = rc
+
+    # Currently we only understand the rc1=64 'linear grid' mode.
+    if rc1 != 64:
+        return None
+
+    family_const = rc2 + 8 * subdivision
+    family = FAMILY_DEFS_RC1_64.get(family_const)
+    if family is None:
+        # Unknown family constant – fall back to table-based logic
+        return None
+
+    denom = family["denominator"]
+    offset = family["offset"]
+
+    # Duration in quarter notes:
+    # quarters = (subdivision + offset) / denom
+    # ticks = quarters * ppqn
+    numerator = subdivision + offset
+    ticks = (ppqn * numerator) // denom
+    return ticks
+
 def resolve_long_duration(rc, ppqn) -> None | int:
     """
     Handles rc2 == 127 (long-duration family):
@@ -375,8 +428,7 @@ def resolve_long_duration(rc, ppqn) -> None | int:
 
     return quarter_units * ppqn
 
-
-def note_length_from_rhythmic_class(rc, ppqn) -> int:
+def note_length_from_ga11_table(rc, ppqn) -> None | int:
     """
     Resolve note length using the full 3-byte rhythmic class:
         (rc1, rc2, rc3)
@@ -450,7 +502,28 @@ def note_length_from_rhythmic_class(rc, ppqn) -> int:
     if rc in table:
         return table[rc]
 
-    print(f" * Unrecognized note length: {rc}")
+    return None
+
+def note_length_from_ga11(rc, ppqn, verbose = None) -> int:
+    """
+    Combined resolver:
+    1. Try existing lookup-table resolver.
+    2. If that fails, try the formula-based resolver.
+    """
+    # 1. Your existing table-based resolver
+    length = note_length_from_ga11_table(rc, ppqn)  # whatever your current function is called
+    if length is not None:
+        # if verbose: print(f"  + note length of {length} retrieved from table for rc {rc}")
+        return length
+
+    # 2. Formula-based fallback
+    length = note_length_from_ga11_formula(rc, ppqn)
+    if length is not None:
+        if verbose: print(f"  * note length of {length} calculated from formula for rc {rc}")
+        return length
+
+    # 3. Final crude fallback (your current default behavior, if any)
+    print(f"  !! Unrecognized note length: {rc}, falling back to a 32nd note length")
     return ppqn // 8     # fallback to a 32nd
 
 ###############################################################################
@@ -545,7 +618,7 @@ def build_midi_from_sxq_meta(meta: SXQMetadata, verbose = None) -> bytes:
             abs_time += note.event_delta
 
             start = abs_time
-            note_len = note_length_from_rhythmic_class(note.rhythmic_class, ppqn)
+            note_len = note_length_from_ga11(note.rhythmic_class, ppqn, verbose)
             end = start + note_len
 
             if verbose: print(
