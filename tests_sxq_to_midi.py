@@ -79,6 +79,7 @@ class AcceptanceTests(unittest.TestCase):
         ('quarterNotes4bars120bpm127velocity-ASharp'),
         ('quarterTied16thNotes1bar120bpm127velocity-ASharp'),
         ('quarterTied16thTied64thNotes1bar120bpm127velocity-ASharp'),
+        ('quarterTied16thTiedDotted32ndNotes1bar120bpm127velocity-ASharp'),
         ('quarterTied32ndNotes1bar120bpm127velocity-ASharp'),
         ('quarterTied64thNotes1bar120bpm127velocity-ASharp'),
         ('quarterTiedDotted8thNotes1bar120bpm127velocity-ASharp'),
