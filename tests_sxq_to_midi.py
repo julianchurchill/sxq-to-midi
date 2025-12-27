@@ -1,6 +1,14 @@
 import unittest
+from os import getcwd, listdir
+from os.path import isfile, join
 from parameterized import parameterized
+from pathlib import Path
 from sxq_to_midi import sxq_bytes_to_midi_bytes
+
+def test_midi_files():
+    test_files_path = join(getcwd(), "test-midi-files")
+    print(f"{test_files_path}")
+    return [Path(f).stem for f in listdir(test_files_path) if isfile(join(test_files_path, f))]
 
 class AcceptanceTests(unittest.TestCase):
 
@@ -20,86 +28,7 @@ class AcceptanceTests(unittest.TestCase):
         print(f"  Hex MIDI2: {midi2_bytes_printable}")
         print(f"             " + "   " * (index - clampedStartMIDI1) + "^^")
 
-    @parameterized.expand([
-        ('2BarNotes4bars120bpm127velocity-ASharp'),
-        ('3BarNotes4bars120bpm127velocity-ASharp'),
-        ('4BarNotes4bars120bpm127velocity-ASharp'),
-        ('8thAnd16thNotesAlternatingOn8thNote1bar120bpm127velocity-ASharp'),
-        ('8thnotes1bar120bpm127velocity-A3AndASharp3'),
-        ('8thnotes1bar120bpm127velocity-ASharp'),
-        ('8thnotes4bars120bpm127velocity-ASharp'),
-        ('8thnotes8bars120bpm127velocity-ASharp'),
-        ('8thTied32ndnotes1bar120bpm127velocity-ASharp'),
-        ('8thTied64thNotes1bar120bpm127velocity-ASharp'),
-        ('8thTiedDotted16thnotes1bar120bpm127velocity-ASharp'),
-        ('8thTiedDotted32ndNotes1bar120bpm127velocity-ASharp'),
-        ('16thnotes4bars120bpm101velocity-ASharp'),
-        ('16thnotes4bars120bpm127velocity-A3'),
-        ('16thnotes4bars120bpm127velocity-ASharp'),
-        ('16thnotes4bars120bpm127velocity-D5'),
-        ('16thnotes4bars120bpmVaryingVelocity-ASharp'),
-        ('16thTied64thnotes1bar120bpm127velocity-ASharp'),
-        ('32ndnotes1bar120bpm127velocity-ASharp-32ndGrid'),
-        ('64thnotes1bar120bpm127velocity-ASharp'),
-        ('dotted8thNotes1bar120bpm127velocity-ASharp'),
-        ('dotted8thTied64thNotes1bar120bpm127velocity-ASharp'),
-        ('dotted8thTiedDotted32ndNotes1bar120bpm127velocity-ASharp'),
-        ('dotted16thnotes1bar120bpm127velocity-ASharp'),
-        ('dotted16thTied64thnotes1bar120bpm127velocity-ASharp'),
-        ('dotted32ndnotes1bar120bpm127velocity-ASharp'),
-        ('dottedHalfNotes4bars120bpm127velocity-ASharp'),
-        ('dottedHalfTied8thTied32ndNotes4bars120bpm127velocity-ASharp'),
-        ('dottedHalfTied32ndNotes4bars120bpm127velocity-ASharp'),
-        ('dottedHalfTiedDotted8thTied32ndNotes4bars120bpm127velocity-ASharp'),
-        ('dottedHalfTiedDotted16thNotes4bars120bpm127velocity-ASharp'),
-        ('dottedQuarterNotes1bar120bpm127velocity-ASharp'),
-        ('dottedQuarterNotes4bars120bpm127velocity-ASharp'),
-        ('dottedQuarterTied16thTied64thNotes1bar120bpm127velocity-ASharp'),
-        ('dottedQuarterTied32ndNotes1bar120bpm127velocity-ASharp'),
-        ('dottedQuarterTied64thNotes1bar120bpm127velocity-ASharp'),
-        ('dottedQuarterTiedDotted16thNotes1bar120bpm127velocity-ASharp'),
-        ('dottedQuarterTiedDotted16thTied64thNotes1bar120bpm127velocity-ASharp'),
-        ('dottedQuarterTiedDotted32ndNotes1bar120bpm127velocity-ASharp'),
-        ('dottedWholeNotes4bars120bpm127velocity-ASharp'),
-        ('dottedWholeTied8thTied32ndNotes4bars120bpm127velocity-ASharp'),
-        ('dottedWholeTied32ndNotes4bars120bpm127velocity-ASharp'),
-        ('dottedWholeTiedDotted8thTied32ndNotes4bars120bpm127velocity-ASharp'),
-        ('dottedWholeTiedDotted16thNotes4bars120bpm127velocity-ASharp'),
-        ('dottedWholeTiedDottedQuarterTied32ndNotes4bars120bpm127velocity-ASharp'),
-        ('dottedWholeTiedDottedQuarterTiedDotted16thNotes4bars120bpm127velocity-ASharp'),
-        ('dottedWholeTiedQuarterTied32ndNotes4bars120bpm127velocity-ASharp'),
-        ('dottedWholeTiedQuarterTiedDotted16thNotes4bars120bpm127velocity-ASharp'),
-        ('halfNotes4bars120bpm127velocity-ASharp'),
-        ('halfTied8thNotes4bars120bpm127velocity-ASharp'),
-        ('halfTied8thTied32ndNotes4bars120bpm127velocity-ASharp'),
-        ('halfTied16thNotes4bars120bpm127velocity-ASharp'),
-        ('halfTied32ndNotes4bars120bpm127velocity-ASharp'),
-        ('halfTiedDotted8thNotes4bars120bpm127velocity-ASharp'),
-        ('halfTiedDotted8thTied32ndNotes4bars120bpm127velocity-ASharp'),
-        ('halfTiedDotted16thNotes4bars120bpm127velocity-ASharp'),
-        ('halfTiedDottedQuarterNotes4bars120bpm127velocity-ASharp'),
-        ('halfTiedQuarterTied16thNotes4bars120bpm127velocity-ASharp'),
-        ('halfTiedQuarterTiedDotted8thNotes4bars120bpm127velocity-ASharp'),
-        ('quarterNotes1bar120bpm127velocity-ASharp'),
-        ('quarterNotes4bars120bpm127velocity-ASharp'),
-        ('quarterTied16thNotes1bar120bpm127velocity-ASharp'),
-        ('quarterTied16thTied64thNotes1bar120bpm127velocity-ASharp'),
-        ('quarterTied16thTiedDotted32ndNotes1bar120bpm127velocity-ASharp'),
-        ('quarterTied32ndNotes1bar120bpm127velocity-ASharp'),
-        ('quarterTied64thNotes1bar120bpm127velocity-ASharp'),
-        ('quarterTiedDotted8thNotes1bar120bpm127velocity-ASharp'),
-        ('quarterTiedDotted16thNotes1bar120bpm127velocity-ASharp'),
-        ('quarterTiedDotted32ndNotes1bar120bpm127velocity-ASharp'),
-        ('wholeNotes4bars120bpm127velocity-ASharp'),
-        ('wholeTied8thTied32ndNotes4bars120bpm127velocity-ASharp'),
-        ('wholeTied32ndNotes4bars120bpm127velocity-ASharp'),
-        ('wholeTiedDotted8thTied32ndNotes4bars120bpm127velocity-ASharp'),
-        ('wholeTiedDotted16thNotes4bars120bpm127velocity-ASharp'),
-        ('wholeTiedDottedQuarterTied32ndNotes4bars120bpm127velocity-ASharp'),
-        ('wholeTiedDottedQuarterTiedDotted16thNotes4bars120bpm127velocity-ASharp'),
-        ('wholeTiedQuarterTied32ndNotes4bars120bpm127velocity-ASharp'),
-        ('wholeTiedQuarterTiedDotted16thNotes4bars120bpm127velocity-ASharp')
-    ])
+    @parameterized.expand(test_midi_files())
     def test_sxq_converts_to_midi(self, filename):
         sxq_filename = f'test-sxq-files/{filename}.sxq'
         midi_filename = f'test-midi-files/{filename}.mid'
