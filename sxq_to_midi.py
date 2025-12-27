@@ -446,6 +446,7 @@ def note_length_from_ga11_table(rc, ppqn) -> None | int:
         (64, 11, 6):  (ppqn * 13) // 16,# dotted eighth tied 64th
         (64, 15, 13):  (ppqn * 7) // 4, # quarter tied dotted eighth (7x16ths)
         (64, 15, 28):  (ppqn * 15) // 4,# half tied quarter tied dotted eighth
+        # expecting (64, 15, 58)
         (64, 19, 5):  (ppqn * 11) // 16,# eighth tied dotted 32nd
         (64, 23, 12):  (ppqn * 13) // 8,# dotted quarter tied 32nd
         (64, 23, 27):  (ppqn * 29) // 8,# dotted half tied 8th tied 32nd
@@ -456,12 +457,14 @@ def note_length_from_ga11_table(rc, ppqn) -> None | int:
         (64, 31, 26):  (ppqn * 7) // 2, # half tied dotted quarter
         (64, 35, 3):   (ppqn * 7) // 16,# dotted 16th tied 64th
         (64, 35, 18): (ppqn * 39) // 16,# half tied 16th tied dotted 32nd
+        # expecting (64, 35, 23)
         (64, 39, 10):  (ppqn * 11) // 8,# quarter tied dotted sixteenth
         (64, 39, 25):  (ppqn * 27) // 8,# dotted half tied dotted sixteenth
         (64, 39, 40):  (ppqn * 43) // 8,# whole tied quarter tied dotted 16th
         (64, 39, 55):  (ppqn * 59) // 8,# dotted whole tied quarter tied dotted 16th
         (64, 43, 2):   (ppqn * 5) // 16,# 16th tied 64th
         (64, 43, 17): (ppqn * 37) // 16,# half tied 16th tied 64th
+        # expecting (64, 46, 23)
         (64, 47, 9):   (ppqn * 5) // 4, # quarter tied sixteenth (5x16ths)
         (64, 47, 24):  (ppqn * 13) // 4,# half tied quarter tied sixteenth
         # (64, 49, 12):  (ppqn * 3) // 4, # what is a 49, 12 (31, 0C)?  AI thinks it a dotted quarter tied 32nd (but this would be the same as 23, 12)...
@@ -476,14 +479,18 @@ def note_length_from_ga11_table(rc, ppqn) -> None | int:
         (64, 63, 7):   ppqn,            # quarter
         (64, 63, 22):  ppqn * 3,        # dotted half
         (64, 67, 14): (ppqn * 31) // 16,# dotted quarter tied dotted 16th tied 64th
+        # expecting (64, 70, 23)
         (64, 71, 6):  (ppqn * 7) // 8,  # eighth tied dotted sixteenth
+        # expecting (64, 71, 7)
         (64, 71, 21): (ppqn * 23) // 8, # half tied dotted eighth tied 32nd
         (64, 71, 36): (ppqn * 39) // 8, # whole tied dotted eighth tied 32nd
         (64, 71, 51): (ppqn * 55) // 8, # dotted whole tied dotted eighth tied 32nd
+        # expecting (64, 73, 10)
         (64, 75, 13): (ppqn * 29) // 16,# dotted quarter tied 16th tied 64th
         (64, 79, 5):  (ppqn * 3) // 4,  # dotted eighth
         (64, 79, 20): (ppqn * 11) // 4, # half tied dotted eighth (11x16ths)
         (64, 83, 12): (ppqn * 27) // 16,# dotted quarter tied dotted 32nd
+        # expecting (64, 84, 11)
         (64, 87, 4):  (ppqn * 5) // 8,  # eighth tied 32nd
         (64, 87, 19): (ppqn * 21) // 8, # half tied eighth tied 32nd
         (64, 87, 34): (ppqn * 37) // 8, # whole tied eighth tied 32nd
@@ -492,6 +499,7 @@ def note_length_from_ga11_table(rc, ppqn) -> None | int:
         (64, 95, 3):   ppqn // 2,       # eighth
         (64, 95, 18):  (ppqn * 5) // 2, # half tied eighth (10x16ths)
         (64, 99, 10): (ppqn * 23) // 16,# quarter tied 16th tied dotted 32nd
+        # expecting (64, 100, 10)
         (64, 103, 2):  (ppqn * 3) // 8, # dotted sixteenth
         (64, 103, 17): (ppqn * 19) // 8,# half tied dotted sixteenth
         (64, 103, 32): (ppqn * 35) // 8,# whole tied dotted 16th
