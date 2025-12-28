@@ -428,16 +428,8 @@ def resolve_long_duration(rc, ppqn) -> None | int:
 
     return quarter_units * ppqn
 
-def note_length_from_ga11_table(rc, ppqn) -> None | int:
-    """
-    Resolve note length using the full 3-byte rhythmic class:
-        (rc1, rc2, rc3)
-    """
-    length = resolve_long_duration(rc, ppqn)
-    if length is not None:
-        return length
-
-    table = {
+def note_length_table(ppqn):
+    return {
         (64, 3, 7):   (ppqn * 15) // 16,# dotted eighth tied dotted 32nd
         (64, 3, 22):  (ppqn * 47) // 16,# half tied dotted 8th tied dotted 32nd
         (64, 3, 37):  (ppqn * 79) // 16,# whole tied dotted 8th tied dotted 32nd
@@ -551,6 +543,16 @@ def note_length_from_ga11_table(rc, ppqn) -> None | int:
         # (64, 127, 119): ppqn * 16,      # 4 bars
     }
 
+def note_length_from_ga11_table(rc, ppqn) -> None | int:
+    """
+    Resolve note length using the full 3-byte rhythmic class:
+        (rc1, rc2, rc3)
+    """
+    length = resolve_long_duration(rc, ppqn)
+    if length is not None:
+        return length
+
+    table = note_length_table(ppqn)
     if rc in table:
         return table[rc]
 
@@ -736,6 +738,17 @@ def sxq_to_midi_full(sxq_path: str, midi_path: str):
         sxq_bytes = f.read()
 
     meta = parse_sxq(sxq_bytes, verbose = True)
+
+    note_lengths = note_length_table(960)
+    sorted_note_lengths = sorted(note_lengths.items(), key=lambda x: x[1])
+    print("Note length table @960 PPQN:")
+    for (rc1, rc2, subdivision), val in sorted_note_lengths:
+        # subdivision are 120 pulses apart for 64th notes
+        # except every 7-ish subdivisions: 7 (before 8), 15 (before  16), 22, 29, 36(?), 43(?)
+        # which are 180 pulses apart!
+        alternative = (subdivision*120)+(60 if rc2 < 60 else 120)
+        print(f"({rc1:2}, {rc2:3}, {subdivision:2}): {val:4}  {alternative:4}")
+    print("")
 
     print("SXQ parsed:")
     print(f"  Format: {meta.format_type}")
