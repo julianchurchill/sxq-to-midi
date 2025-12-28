@@ -541,6 +541,7 @@ def note_length_table(ppqn):
         (64, 123, 7): (ppqn * 17) // 16,# quarter tied 64th
         (64, 123, 22):(ppqn * 49) // 16,# dotted half tied 64th
         (64, 123, 37):(ppqn * 81) // 16,# whole tied quarter tied 64th
+        (64, 123, 52):(ppqn * 113) // 16,# whole tied dotted half tied 64th
         # handled in resolve_long_duration
         # (64, 127, 14): ppqn * 2,        # half
         # (64, 127, 29): ppqn * 4,        # whole
