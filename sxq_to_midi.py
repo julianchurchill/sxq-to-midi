@@ -508,6 +508,7 @@ def note_length_table(ppqn):
         (64, 83, 12): (ppqn * 27) // 16,# dotted quarter tied dotted 32nd
         (64, 83, 27): (ppqn * 59) // 16,# dotted half tied 8th tied dotted 32nd
         (64, 83, 42): (ppqn * 91) // 16,# whole tied dotted quarter tied dotted 32nd
+        (64, 83, 57):(ppqn * 123) // 16,# whole tied dotted half tied 8th tied dotted 32nd
         # expecting (64, 84, 11)
         (64, 87, 4):  (ppqn * 5) // 8,  # eighth tied 32nd
         (64, 87, 19): (ppqn * 21) // 8, # half tied eighth tied 32nd
