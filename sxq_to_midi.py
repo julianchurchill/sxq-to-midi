@@ -742,12 +742,20 @@ def sxq_to_midi_full(sxq_path: str, midi_path: str):
     note_lengths = note_length_table(960)
     sorted_note_lengths = sorted(note_lengths.items(), key=lambda x: x[1])
     print("Note length table @960 PPQN:")
+    print("rc             Pulses  Subdivision_diff  Alternative  Alternative_mismatch")
+    last_subdivision = -1
+    min_pulses_for_subdivsion = 0
+    subdivison_pulse_diff = 0
     for (rc1, rc2, subdivision), val in sorted_note_lengths:
         # subdivision are 120 pulses apart for 64th notes
         # except every 7-ish subdivisions: 7 (before 8), 15 (before  16), 22, 29, 36(?), 43(?)
         # which are 180 pulses apart!
         alternative = (subdivision*120)+(60 if rc2 < 60 else 120)
-        print(f"({rc1:2}, {rc2:3}, {subdivision:2}): {val:4}  {alternative:4}")
+        if subdivision != last_subdivision:
+            subdivison_pulse_diff = val - min_pulses_for_subdivsion
+            min_pulses_for_subdivsion = val
+        last_subdivision = subdivision
+        print(f"({rc1:2}, {rc2:3}, {subdivision:2}):  {val:4}        {'' if subdivision == 0 else subdivison_pulse_diff:4}           {alternative:4}           {'*' if val != alternative else ''}")
     print("")
 
     print("SXQ parsed:")
