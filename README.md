@@ -29,7 +29,7 @@ A python script generated with AI to convert SXQ files to MIDI.
 
 # TODO - sxq_to_midi.py
 
-- Handle whole + quarter/dotted half tied notes
+- ... Handle whole + quarter/dotted half tied notes
 - Handle whole + 8th/dotted quarter tied notes
 - Handle whole + 16th/dotted 8th tied notes
 - Handle swing. Is it implemented by a tiny change in note length?
