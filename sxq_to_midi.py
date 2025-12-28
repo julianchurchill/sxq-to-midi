@@ -460,6 +460,7 @@ def note_length_table(ppqn):
         (64, 31, 11):  (ppqn * 3) // 2, # dotted quarter
         (64, 31, 26):  (ppqn * 7) // 2, # half tied dotted quarter
         (64, 31, 41): (ppqn * 88) // 16,# whole tied dotted quarter
+        (64, 31, 56):(ppqn * 120) // 16,# whole tied dotted half tied 8th
         (64, 35, 3):   (ppqn * 7) // 16,# dotted 16th tied 64th
         (64, 35, 18): (ppqn * 39) // 16,# half tied 16th tied dotted 32nd
         (64, 35, 33): (ppqn * 71) // 16,# whole tied 16th tied dotted 32nd
