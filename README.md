@@ -29,8 +29,8 @@ A python script generated with AI to convert SXQ files to MIDI.
 
 # TODO - sxq_to_midi.py
 
-- ... Handle whole + 8th/dotted quarter tied notes
-- Handle whole + 16th/dotted 8th tied notes
+- ... Handle whole + 16th/dotted 8th tied notes
+- Handle whole + 8th/dotted quarter tied notes
 - Handle swing. Is it implemented by a tiny change in note length?
 - Horns in broken.sxq are converted at too short a note length - investigate and fix. Is it because they were half/dotted halfs/whole notes?
     - Third note in broken.sxq horns is 49, 12 (31, 0C), AI thinks it might be a dotted quarter tied 32nd...
@@ -50,6 +50,7 @@ A python script generated with AI to convert SXQ files to MIDI.
 
 # Done
 
+- Handle whole + 8th/dotted quarter tied notes
 - Handle whole + quarter/dotted half tied notes
 - Handle whole + 64th/dotted 32nd tied notes
 - Print out table of (rc1, rc2, subdivision) bytes and values
