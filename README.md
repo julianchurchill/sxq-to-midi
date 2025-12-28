@@ -29,8 +29,6 @@ A python script generated with AI to convert SXQ files to MIDI.
 
 # TODO - sxq_to_midi.py
 
-- ... Handle swing. Is it implemented by a tiny change in note length? No - it's about note positioning.
-    - Swing looks like rc1 is always 0
 - Not all SXQ tracks are midi - don't export them as we run out of real midi track space in MPC Beats. What are they?
 - Handle track volume curve
 - Handle tempo (not in a special track 0 conductor track if possible)
@@ -44,6 +42,7 @@ A python script generated with AI to convert SXQ files to MIDI.
 
 # Done
 
+- Added tests to check note swing positioning adjustments are converted ok
 - Handle note lengths as a formula and not a look up table
 - Handle whole + 16th/dotted 8th tied notes
 - Handle whole + 8th/dotted quarter tied notes
