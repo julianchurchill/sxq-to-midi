@@ -477,6 +477,7 @@ def note_length_table(ppqn):
         # expecting (64, 46, 23)
         (64, 47, 9):   (ppqn * 5) // 4, # quarter tied sixteenth (5x16ths)
         (64, 47, 24):  (ppqn * 13) // 4,# half tied quarter tied sixteenth
+        (64, 47, 39): (ppqn * 84) // 16,# whole tied quarter tied 16th
         # (64, 49, 12):  (ppqn * 3) // 4, # what is a 49, 12 (31, 0C)?  AI thinks it a dotted quarter tied 32nd (but this would be the same as 23, 12)...
         (64, 51, 1):  (ppqn * 3) // 16, # dotted 32nd
         (64, 51, 16): (ppqn * 35) // 16,# half tied dotted 32nd
