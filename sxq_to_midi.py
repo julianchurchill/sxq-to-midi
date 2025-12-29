@@ -58,6 +58,11 @@ class Ga11Note:
     rhythmic_class: Tuple[int, int, int]
     event_delta: int
 
+@dataclass
+class MidiAutomationEvent:
+    ticks: int
+    control_type: int
+    value: int
 
 @dataclass
 class SXQTrack:
@@ -65,7 +70,7 @@ class SXQTrack:
     name: Optional[str] = None
     ga_events: List[GaEvent] = field(default_factory=list)
     ga11_notes: List[Ga11Note] = field(default_factory=list)
-
+    midi_automation_events: List[MidiAutomationEvent] = field(default_factory=list)
 
 @dataclass
 class SXQSequenceMeta:
@@ -212,17 +217,33 @@ def parse_sxq(sxq_bytes: bytes, verbose = None) -> SXQMetadata:
             status = sxq_bytes[track_offset]
             track_offset += 1
 
+            # if verbose: print(f"  status={status}, track_offset={track_offset}, event_delta={event_delta}")
+
             if status == 0xFF:
                 if track_offset >= track_end:
                     break
                 meta_type = sxq_bytes[track_offset]
                 track_offset += 1
 
-                meta_len, track_offset = read_vlq(sxq_bytes, track_offset)
+                # For meta_type 70 (MIDI automation event) expect 1 byte of 01 followed by 1 or zero instances of 
+                #  5 bytes of the form xx yy b0 zz vv
+                #  where xx yy is a timestamp, zz is a control identifier (e.g. 7 is volume) and vv is the new value
+                # The sequence is always terminated by a last byte of 00 before an FF - but ignore the 00 and let the 
+                #  track loop read it as an event delta of 0 so it can proceed to the next event in the track neatly
+                if meta_type == 0x70:
+                    meta_len = 0
+                    while sxq_bytes[track_offset + meta_len] != 0xff:
+                        meta_len += 1
+                    # ignore the last byte of 00
+                    meta_len -= 1
+                else:
+                    meta_len, track_offset = read_vlq(sxq_bytes, track_offset)
                 meta_data_start = track_offset
                 meta_data_end = meta_data_start + meta_len
                 meta_data = sxq_bytes[meta_data_start:meta_data_end]
                 track_offset = meta_data_end
+
+                # if verbose: print(f"   meta_type={meta_type}, meta_len={meta_len}")
 
                 # Track name
                 if meta_type == 0x03:
@@ -252,6 +273,23 @@ def parse_sxq(sxq_bytes: bytes, verbose = None) -> SXQMetadata:
                         # quarter_notes_per_bar = 4 / denominator
                         seq_meta.ticks_per_bar = int(nn * (ppqn * 4 / denominator))
 
+                # Track level initial MIDI automation event
+                elif meta_type == 0x70:
+                    # parse the event if it contains 6 bytes - should be of the form:
+                    #  01 xx yy b0 zz vv
+                    #  where xx yy is a timestamp, zz is a control identifier (e.g. 7 is volume) and vv is the new value
+                    if meta_len == 6:
+                        ticks, _ = read_uint16_be(meta_data, 1)
+                        control_type = meta_data[4]
+                        value = meta_data[5]
+                        event = MidiAutomationEvent(
+                            ticks=ticks,
+                            control_type=control_type,
+                            value=value
+                        )
+                        track.midi_automation_events.append(event)
+                        if verbose: print(f"    [Initial MIDI automation event] ticks={ticks}, control_type={control_type}, value={value}")
+
                 # Vendor-specific (Ga)
                 elif meta_type == 0x7F:
                     if len(meta_data) >= 3 and meta_data[0:2] == b"Ga":
@@ -264,6 +302,10 @@ def parse_sxq(sxq_bytes: bytes, verbose = None) -> SXQMetadata:
                             bar_count = extract_bar_count_from_ga00(payload)
                             if bar_count is not None:
                                 seq_meta.bar_count_from_ga00 = bar_count
+
+                        # Ga-15: track configuration/event
+                        # elif subtype == 0x15:
+                            # if verbose: print(f"    [Ga15] payload={payload}")
 
                         # Ga-11: note definitions
                         elif subtype == 0x11:
@@ -363,7 +405,7 @@ def build_midi_from_sxq_meta(meta: SXQMetadata, verbose = None) -> bytes:
     """
     Build a Standard MIDI File (Format 1) from parsed SXQ metadata.
     - Track 0: master tempo + time signature + sequence name
-    - One track per SXQ track, containing Ga-11 → MIDI notes
+    - One track per SXQ track, containing Ga-11 → MIDI notes and MIDI automation events
     """
     ppqn = meta.ppqn
 
@@ -528,7 +570,7 @@ def sxq_to_midi_full(sxq_path: str, midi_path: str):
     print(f"    Bars (computed):         {meta.sequence.bars}")
 
     for tr in meta.tracks:
-        print(f"  Track {tr.index}: name={tr.name}, Ga-11 notes={len(tr.ga11_notes)}, Ga events={len(tr.ga_events)}")
+        print(f"  Track {tr.index}: name={tr.name}, Ga-11 notes={len(tr.ga11_notes)}, Ga events={len(tr.ga_events)}, MIDI automation events={len(tr.midi_automation_events)}")
 
     midi_bytes = build_midi_from_sxq_meta(meta, verbose = True)
 
