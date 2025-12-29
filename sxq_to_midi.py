@@ -410,7 +410,7 @@ def parse_sxq(sxq_bytes: bytes, verbose = None) -> SXQMetadata:
         tracks=sxq_tracks,
     )
 
-def note_length_from_ga11(rc, ppqn, verbose = None) -> int:
+def note_length_from_ga11(rc) -> int:
     (_, rc2, subdivision) = rc
     return subdivision * 128 + rc2 + 1
 
@@ -507,7 +507,7 @@ def build_midi_from_sxq_meta(meta: SXQMetadata, verbose = None) -> bytes:
             abs_time += note.event_delta
 
             start = abs_time
-            note_len = note_length_from_ga11(note.rhythmic_class, ppqn, verbose)
+            note_len = note_length_from_ga11(note.rhythmic_class)
             end = start + note_len
 
             if verbose: print(
@@ -515,28 +515,27 @@ def build_midi_from_sxq_meta(meta: SXQMetadata, verbose = None) -> bytes:
                 f"start={start}, len={note_len}, rc={note.rhythmic_class}"
             )
 
-            events.append((start, True, note.pitch, note.velocity))
-            events.append((end, False, note.pitch, 0))
+            events.append((start, 0x90, note.pitch, note.velocity)) # note on control change 0x90
+            events.append((end, 0x80, note.pitch, 0))               # note off control change 0x80
 
         # Sort events: time, then note-off before note-on at same tick
-        events.sort(key=lambda e: (e[0], 0 if not e[1] else 1))
+        events.sort(key=lambda e: (e[0], 0 if e[1] == 0x80 else 1))
 
         last_tick = 0
         running_status = None
 
-        for tick, is_on, pitch, vel in events:
+        for tick, status, byte1, byte2 in events:
             dt = tick - last_tick
             last_tick = tick
 
             track_bytes += write_vlq(dt)
-            status = 0x90 if is_on else 0x80  # channel 0
 
             if status != running_status:
                 track_bytes.append(status)
                 running_status = status
 
-            track_bytes.append(pitch & 0x7F)
-            track_bytes.append(vel & 0x7F)
+            track_bytes.append(byte1 & 0x7F)
+            track_bytes.append(byte2 & 0x7F)
 
         # End of this track
         track_bytes += write_vlq(0)
