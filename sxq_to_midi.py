@@ -50,12 +50,12 @@ class GaEvent:
     subtype: int
     payload: bytes
 
-
 @dataclass
 class Ga11Note:
     pitch: int
     velocity: int
     rhythmic_class: Tuple[int, int, int]
+    note_len: int
     event_delta: int
 
 @dataclass
@@ -323,16 +323,18 @@ def parse_sxq(sxq_bytes: bytes, verbose = None) -> SXQMetadata:
                                 velocity = payload[2]
                                 midi_note = pitch_byte
                                 rhythmic_class = (payload[6], payload[7], payload[8])
+                                note_len = note_length_from_ga11(rhythmic_class)
 
                                 note = Ga11Note(
                                     pitch=midi_note,
                                     velocity=velocity,
                                     rhythmic_class=rhythmic_class,
+                                    note_len=note_len,
                                     event_delta=current_event_delta
                                 )
                                 track.ga11_notes.append(note)
                                 if verbose : print(f"    [Ga11] pitch={midi_note}, vel={velocity}, "
-                                      f"rhythmic_class={rhythmic_class}, payload_len={len(payload)}")
+                                      f"rhythmic_class={rhythmic_class}, note_len={note_len}, payload_len={len(payload)}")
 
                         # other Ga subtypes: we just keep them raw for now.
 
@@ -492,11 +494,7 @@ def build_midi_from_sxq_meta(meta: SXQMetadata, verbose = None) -> bytes:
                 track_bytes += write_vlq(automation_event.event_delta)
                 track_bytes += bytes([control_change]) + bytes([automation_event.control_type]) + bytes([automation_event.value])
 
-        events = []  # (tick, is_on, pitch, velocity)
-
-        #
-        # NEW: Each Ga-11 event is ONE NOTE, not a lane.
-        #
+        events = []  # (tick, status, byte1, byte2)
         abs_time = 0
 
         for note in tr.ga11_notes:
@@ -507,12 +505,11 @@ def build_midi_from_sxq_meta(meta: SXQMetadata, verbose = None) -> bytes:
             abs_time += note.event_delta
 
             start = abs_time
-            note_len = note_length_from_ga11(note.rhythmic_class)
-            end = start + note_len
+            end = start + note.note_len
 
             if verbose: print(
                 f"[Ga11 note] pitch={note.pitch}, vel={note.velocity}, "
-                f"start={start}, len={note_len}, rc={note.rhythmic_class}"
+                f"start={start}, len={note.note_len}, rc={note.rhythmic_class}"
             )
 
             events.append((start, 0x90, note.pitch, note.velocity)) # note on control change 0x90
@@ -525,10 +522,10 @@ def build_midi_from_sxq_meta(meta: SXQMetadata, verbose = None) -> bytes:
         running_status = None
 
         for tick, status, byte1, byte2 in events:
-            dt = tick - last_tick
+            delta_tick = tick - last_tick
             last_tick = tick
 
-            track_bytes += write_vlq(dt)
+            track_bytes += write_vlq(delta_tick)
 
             if status != running_status:
                 track_bytes.append(status)
