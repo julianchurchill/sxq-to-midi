@@ -223,7 +223,7 @@ def parse_sxq(sxq_bytes: bytes, verbose = None) -> SXQMetadata:
             status = sxq_bytes[track_offset]
             track_offset += 1
 
-            # if verbose: print(f"  status={status}, track_offset={track_offset}, event_delta={event_delta}")
+            # if verbose: print(f"  status=0x{status:x}, track_offset={track_offset}, event_delta={event_delta}")
 
             if status == 0xFF:
                 if track_offset >= track_end:
@@ -496,15 +496,14 @@ def build_midi_from_sxq_meta(meta: SXQMetadata, verbose = None) -> bytes:
 
         events = []  # (tick, status, byte1, byte2)
 
-        # add automation events to the track
-        if tr.midi_automation_events:
-            for automation_event in tr.midi_automation_events:
-                control_change = 0xB0 | (automation_event.channel & 0x0F)
-                if verbose: print(f"[MIDI automation event] event_delta={automation_event.event_delta}, "
-                                  f"channel={automation_event.channel}, control_type={automation_event.control_type}, "
-                                  f"value={automation_event.value}")
-                track_bytes += write_vlq(automation_event.event_delta)
-                track_bytes += bytes([control_change]) + bytes([automation_event.control_type]) + bytes([automation_event.value])
+        # parse the automation events and add them to _events_ in the same form as notes - (tick, status, byte1, byte2)
+        for automation_event in tr.midi_automation_events:
+            control_change = 0xB0 | (automation_event.channel & 0x0F)
+            if verbose: print(f"[MIDI automation event] event_delta={automation_event.event_delta}, "
+                                f"channel={automation_event.channel}, control_type={automation_event.control_type}, "
+                                f"value={automation_event.value}")
+            events.append((automation_event.track_absolute_ticks, control_change,
+                            automation_event.control_type, automation_event.value))
 
         for note in tr.ga11_notes:
             start = note.track_absolute_ticks
