@@ -492,13 +492,6 @@ def build_midi_from_sxq_meta(meta: SXQMetadata, verbose = None) -> bytes:
                 track_bytes += write_vlq(automation_event.event_delta)
                 track_bytes += bytes([control_change]) + bytes([automation_event.control_type]) + bytes([automation_event.value])
 
-        if not tr.ga11_notes:
-            # No Ga-11 → no notes, just end-of-track
-            track_bytes += write_vlq(0)
-            track_bytes += bytes([0xFF, 0x2F, 0x00])
-            midi_tracks.append(track_bytes)
-            continue
-
         events = []  # (tick, is_on, pitch, velocity)
 
         #
