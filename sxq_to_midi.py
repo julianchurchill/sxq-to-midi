@@ -57,10 +57,12 @@ class Ga11Note:
     rhythmic_class: Tuple[int, int, int]
     note_len: int
     event_delta: int
+    track_absolute_ticks: int
 
 @dataclass
 class MidiAutomationEvent:
     event_delta: int
+    track_absolute_ticks: int
     channel: int
     control_type: int
     value: int
@@ -209,9 +211,12 @@ def parse_sxq(sxq_bytes: bytes, verbose = None) -> SXQMetadata:
         track = SXQTrack(index=track_index)
         track_offset = offset
 
+        track_absolute_ticks = 0
+
         while track_offset < track_end:
             event_delta, track_offset = read_vlq(sxq_bytes, track_offset)
             current_event_delta = event_delta
+            track_absolute_ticks += event_delta
             if track_offset >= track_end:
                 break
 
@@ -285,12 +290,13 @@ def parse_sxq(sxq_bytes: bytes, verbose = None) -> SXQMetadata:
                         value = meta_data[5]
                         event = MidiAutomationEvent(
                             event_delta=event_delta,
+                            track_absolute_ticks=track_absolute_ticks,
                             channel=channel,
                             control_type=control_type,
                             value=value
                         )
                         track.midi_automation_events.append(event)
-                        if verbose: print(f"    [Initial MIDI automation event] event_delta={event_delta}, channel={channel}, control_type={control_type}, value={value}")
+                        if verbose: print(f"    [Initial MIDI automation event] event_delta={event_delta}, track_absolute_ticks={track_absolute_ticks}, channel={channel}, control_type={control_type}, value={value}")
 
                 # Vendor-specific (Ga)
                 elif meta_type == 0x7F:
@@ -330,11 +336,12 @@ def parse_sxq(sxq_bytes: bytes, verbose = None) -> SXQMetadata:
                                     velocity=velocity,
                                     rhythmic_class=rhythmic_class,
                                     note_len=note_len,
-                                    event_delta=current_event_delta
+                                    event_delta=current_event_delta,
+                                    track_absolute_ticks=track_absolute_ticks
                                 )
                                 track.ga11_notes.append(note)
                                 if verbose : print(f"    [Ga11] pitch={midi_note}, vel={velocity}, "
-                                      f"rhythmic_class={rhythmic_class}, note_len={note_len}, payload_len={len(payload)}")
+                                      f"rhythmic_class={rhythmic_class}, note_len={note_len}, event_delta={event_delta}, track_absolute_ticks={track_absolute_ticks}, payload_len={len(payload)}")
 
                         # other Ga subtypes: we just keep them raw for now.
 
@@ -345,12 +352,13 @@ def parse_sxq(sxq_bytes: bytes, verbose = None) -> SXQMetadata:
                 value = sxq_bytes[track_offset+1]
                 event = MidiAutomationEvent(
                     event_delta=event_delta,
+                    track_absolute_ticks=track_absolute_ticks,
                     channel=channel,
                     control_type=control_type,
                     value=value
                 )
                 track.midi_automation_events.append(event)
-                if verbose: print(f"    [MIDI control change event] channel={channel}, control_type={control_type}, value={value}")
+                if verbose: print(f"    [MIDI control change event] event_delta={event_delta}, track_absolute_ticks={track_absolute_ticks}, channel={channel}, control_type={control_type}, value={value}")
                 track_offset += 2
 
             elif status in (0xF0, 0xF7):
@@ -495,16 +503,9 @@ def build_midi_from_sxq_meta(meta: SXQMetadata, verbose = None) -> bytes:
                 track_bytes += bytes([control_change]) + bytes([automation_event.control_type]) + bytes([automation_event.value])
 
         events = []  # (tick, status, byte1, byte2)
-        abs_time = 0
 
         for note in tr.ga11_notes:
-            # event_delta is the VLQ before the FF 7F meta
-            # We must accumulate it to get absolute time.
-            # parse_sxq() already read event_delta, but we need to
-            # re-accumulate it here.
-            abs_time += note.event_delta
-
-            start = abs_time
+            start = note.track_absolute_ticks
             end = start + note.note_len
 
             if verbose: print(
