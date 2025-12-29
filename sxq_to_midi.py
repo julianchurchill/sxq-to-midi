@@ -60,7 +60,8 @@ class Ga11Note:
 
 @dataclass
 class MidiAutomationEvent:
-    ticks: int
+    event_delta: int
+    channel: int
     control_type: int
     value: int
 
@@ -279,16 +280,17 @@ def parse_sxq(sxq_bytes: bytes, verbose = None) -> SXQMetadata:
                     #  01 xx yy b0 zz vv
                     #  where xx yy is a timestamp, zz is a control identifier (e.g. 7 is volume) and vv is the new value
                     if meta_len == 6:
-                        ticks, _ = read_uint16_be(meta_data, 1)
+                        channel = meta_data[3] & 0x0F
                         control_type = meta_data[4]
                         value = meta_data[5]
                         event = MidiAutomationEvent(
-                            ticks=ticks,
+                            event_delta=event_delta,
+                            channel=channel,
                             control_type=control_type,
                             value=value
                         )
                         track.midi_automation_events.append(event)
-                        if verbose: print(f"    [Initial MIDI automation event] ticks={ticks}, control_type={control_type}, value={value}")
+                        if verbose: print(f"    [Initial MIDI automation event] event_delta={event_delta}, channel={channel}, control_type={control_type}, value={value}")
 
                 # Vendor-specific (Ga)
                 elif meta_type == 0x7F:
@@ -333,6 +335,21 @@ def parse_sxq(sxq_bytes: bytes, verbose = None) -> SXQMetadata:
                                       f"rhythmic_class={rhythmic_class}, payload_len={len(payload)}")
 
                         # other Ga subtypes: we just keep them raw for now.
+
+            # Extract MIDI automation events - these often are on the tail of Ga-11 events but not _in_ the Ga-11 payload
+            elif (status & 0xF0) == 0xB0:
+                channel = status & 0x0F
+                control_type = sxq_bytes[track_offset]
+                value = sxq_bytes[track_offset+1]
+                event = MidiAutomationEvent(
+                    event_delta=event_delta,
+                    channel=channel,
+                    control_type=control_type,
+                    value=value
+                )
+                track.midi_automation_events.append(event)
+                if verbose: print(f"    [MIDI control change event] channel={channel}, control_type={control_type}, value={value}")
+                track_offset += 2
 
             elif status in (0xF0, 0xF7):
                 # SysEx: read length and skip payload
@@ -470,8 +487,10 @@ def build_midi_from_sxq_meta(meta: SXQMetadata, verbose = None) -> bytes:
         # add automation events to the track
         if tr.midi_automation_events:
             for automation_event in tr.midi_automation_events:
-                if verbose: print(f"[MIDI automation event] ticks={automation_event.ticks}, control_type={automation_event.control_type}, value={automation_event.value}")
-                track_bytes += bytes([automation_event.ticks]) + b"\xB0" + bytes([automation_event.control_type]) + bytes([automation_event.value])
+                control_change = 0xB0 | (automation_event.channel & 0x0F)
+                if verbose: print(f"[MIDI automation event] event_delta={automation_event.event_delta}, channel={automation_event.channel}, control_type={automation_event.control_type}, value={automation_event.value}")
+                track_bytes += write_vlq(automation_event.event_delta)
+                track_bytes += bytes([control_change]) + bytes([automation_event.control_type]) + bytes([automation_event.value])
 
         if not tr.ga11_notes:
             # No Ga-11 → no notes, just end-of-track
