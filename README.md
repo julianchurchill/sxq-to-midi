@@ -30,10 +30,8 @@ A python script generated with AI to convert SXQ files to MIDI.
 # TODO - sxq_to_midi.py
 
 - ... Handle track volume curve
-    - ... initial volume encoded in Ga-15 event as 00 00 B0 07 xx - where 00 00 is the time stamp, B0 07 means MIDI automation type 7 (volume) and xx is the new value
-        - ... handle this initial MIDI automation event
-    - ongoing MIDI automation events appear after Ga-11 note end (64/event delta?). Format is same as above: yy zz B0 07 xx, repeated until yy is '00' to indicate end of automation events.  yy zz is time stamp, B0 07 means MIDI automation type 7 (volume) and xx is the new value
-        - handle these ongoing MIDI automation events
+    - ... ongoing MIDI automation events appear after Ga-11 note end (64/event delta?). Format is same as above: yy zz B0 07 xx, repeated until yy is '00' to indicate end of automation events.  yy zz is time stamp, B0 07 means MIDI automation type 7 (volume) and xx is the new value
+        - ... handle these ongoing MIDI automation events
 - Not all SXQ tracks are midi - don't export them as we run out of real midi track space in MPC Beats. What are they?
 - Handle tempo (not in a special track 0 conductor track if possible)
 - Handle time signature (not in a special track 0 conductor track if possible)
@@ -46,6 +44,7 @@ A python script generated with AI to convert SXQ files to MIDI.
 
 # Done
 
+- Handle initial MIDI automation events embedded per track in Ga-15 events
 - Added tests to check note swing positioning adjustments are converted ok
 - Handle note lengths as a formula and not a look up table
 - Handle whole + 16th/dotted 8th tied notes
