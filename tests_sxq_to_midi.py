@@ -35,7 +35,7 @@ class AcceptanceTests(unittest.TestCase):
         with open(sxq_filename, "rb") as sxq_file, open(midi_filename, "rb") as expected_midi_file:
             sxq_bytes = sxq_file.read()
             expected_midi_bytes = expected_midi_file.read()
-            converted_midi_bytes = sxq_bytes_to_midi_bytes(sxq_bytes, verbose=False)
+            converted_midi_bytes = sxq_bytes_to_midi_bytes(sxq_bytes, verbose=False, extractAllTracks=True)
             maxLength = max(len(sxq_bytes), len(expected_midi_bytes))
             for index in range(maxLength):
                 b1 = expected_midi_bytes[index] if index < len(expected_midi_bytes) else None
@@ -44,7 +44,7 @@ class AcceptanceTests(unittest.TestCase):
                     print(f"Expected MIDI file '{midi_filename}' and converted SXQ bytes from '{sxq_filename}' first differ at byte {index}")
                     self.print_midi_and_midi_diff(expected_midi_bytes, converted_midi_bytes, index)
                     print("> Rerunning conversion with verbose logging:")
-                    sxq_bytes_to_midi_bytes(sxq_bytes, verbose=True)
+                    sxq_bytes_to_midi_bytes(sxq_bytes, verbose=True, extractAllTracks=True)
                     self.fail('Expected MIDI file and converted SXQ bytes differ')
 
 if __name__ == '__main__':

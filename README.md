@@ -13,7 +13,9 @@ A dotnet console app to analyse an SXQ file, output event information and attemp
 
 # Python Script
 
-A python script generated with AI to convert SXQ files to MIDI.
+A python script initially generated with AI to convert SXQ files to MIDI.
+
+Handles only a single sequence. For each track in the sequence, if it has any notes (Ga-11 MPC events) or native MIDI automation events (control change events) then it will save a representative track in the output MIDI file.
 
 ## Run With
 
@@ -29,9 +31,6 @@ A python script generated with AI to convert SXQ files to MIDI.
 
 # TODO - sxq_to_midi.py
 
-- Not all SXQ tracks are midi - don't export them as we run out of real midi track space in MPC Beats. What are they?
-- Handle tempo (not in a special track 0 conductor track if possible)
-- Handle time signature (not in a special track 0 conductor track if possible)
 - Handle triplets
 - Handle 2 bars + half/dotted whole tied notes
 - Handle 2 bars + quarter/dotted half tied notes
@@ -41,6 +40,9 @@ A python script generated with AI to convert SXQ files to MIDI.
 
 # Done
 
+- Only extract MIDI tracks that have notes or automation events in them
+- Handle tempo (not in a special track 0 conductor track if possible)
+- Handle time signature (not in a special track 0 conductor track if possible)
 - Handle interleaved MIDI automation events embedded per track between notes (Ga-11 events)
 - Handle initial MIDI automation events embedded per track in Ga-15 events
 - Added tests to check note swing positioning adjustments are converted ok

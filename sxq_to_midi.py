@@ -376,7 +376,7 @@ def parse_sxq(sxq_bytes: bytes, verbose = None) -> SXQMetadata:
 
         if verbose : print(
             f"[Track {track_index}] done: name={track.name}, "
-            f"Ga events={len(track.ga_events)}, Ga-11 notes={len(track.ga11_notes)}"
+            f"Ga events={len(track.ga_events)}, Ga-11 notes={len(track.ga11_notes)}, MIDI automation events={len(track.midi_automation_events)}"
         )
         sxq_tracks.append(track)
         track_index += 1
@@ -428,7 +428,7 @@ def note_length_from_ga11(rc) -> int:
 # Build MIDI from parsed SXQ
 ###############################################################################
 
-def build_midi_from_sxq_meta(meta: SXQMetadata, verbose = None) -> bytes:
+def build_midi_from_sxq_meta(meta: SXQMetadata, verbose, extractAllTracks) -> bytes:
     """
     Build a Standard MIDI File (Format 1) from parsed SXQ metadata.
     - Track 0: master tempo + time signature + sequence name
@@ -479,9 +479,24 @@ def build_midi_from_sxq_meta(meta: SXQMetadata, verbose = None) -> bytes:
     t0 += write_vlq(0)
     t0 += bytes([0xFF, 0x2F, 0x00])
     midi_tracks.append(t0)
+    
+    if verbose:
+        print(f"MIDI file writing:")
+        print(f"  Sequence Name: {meta.sequence.name or name_bytes}")
+        print(f"  PPQN:          {ppqn}")
+        print(f"  Tempo:         {meta.sequence.tempo_bpm} BPM (mpq={mpq})")
+        print(f"  TimeSig:       {meta.sequence.time_signature or (4, 4)}")
 
-    # One MIDI track per SXQ track (Ga-11 → notes)
-    for tr in meta.tracks:
+    if extractAllTracks:
+        tracks_to_convert = meta.tracks
+    else:
+        tracks_to_convert = filter(
+            lambda t: len(t.midi_automation_events) != 0 or len(t.ga11_notes) != 0, meta.tracks)
+
+    # One MIDI track per SXQ track (Ga-11 → notes plus MIDI automation events)
+    track_count = 0
+    for tr in tracks_to_convert:
+        track_count += 1
         track_bytes = bytearray()
 
         # Track name
@@ -494,12 +509,14 @@ def build_midi_from_sxq_meta(meta: SXQMetadata, verbose = None) -> bytes:
         track_bytes += write_vlq(len(tn_bytes))
         track_bytes += tn_bytes
 
+        if verbose: print(f"  Track {track_count} Name:  {tr.name or tn_bytes}")
+
         events = []  # (tick, status, byte1, byte2)
 
         # parse the automation events and add them to _events_ in the same form as notes - (tick, status, byte1, byte2)
         for automation_event in tr.midi_automation_events:
             control_change = 0xB0 | (automation_event.channel & 0x0F)
-            if verbose: print(f"[MIDI automation event] event_delta={automation_event.event_delta}, "
+            if verbose: print(f"    [MIDI automation event] event_delta={automation_event.event_delta}, "
                                 f"channel={automation_event.channel}, control_type={automation_event.control_type}, "
                                 f"value={automation_event.value}")
             events.append((automation_event.track_absolute_ticks, control_change,
@@ -510,7 +527,7 @@ def build_midi_from_sxq_meta(meta: SXQMetadata, verbose = None) -> bytes:
             end = start + note.note_len
 
             if verbose: print(
-                f"[Ga11 note] pitch={note.pitch}, vel={note.velocity}, "
+                f"    [Ga11 note] pitch={note.pitch}, vel={note.velocity}, "
                 f"start={start}, len={note.note_len}, rc={note.rhythmic_class}"
             )
 
@@ -562,15 +579,15 @@ def build_midi_from_sxq_meta(meta: SXQMetadata, verbose = None) -> bytes:
 # Top-level convenience
 ###############################################################################
 
-def sxq_bytes_to_midi_bytes(sxq_bytes: bytes, verbose = None) -> bytes:
+def sxq_bytes_to_midi_bytes(sxq_bytes: bytes, verbose, extractAllTracks) -> bytes:
     meta = parse_sxq(sxq_bytes, verbose)
-    return build_midi_from_sxq_meta(meta, verbose)
+    return build_midi_from_sxq_meta(meta, verbose, extractAllTracks)
 
-def sxq_to_midi_full(sxq_path: str, midi_path: str):
+def sxq_to_midi_full(sxq_path: str, midi_path: str, extractAllTracks: bool):
     with open(sxq_path, "rb") as f:
         sxq_bytes = f.read()
 
-    meta = parse_sxq(sxq_bytes, verbose = True)
+    meta = parse_sxq(sxq_bytes, verbose=True)
 
     print("SXQ parsed:")
     print(f"  Format: {meta.format_type}")
@@ -586,9 +603,9 @@ def sxq_to_midi_full(sxq_path: str, midi_path: str):
     print(f"    Bars (computed):         {meta.sequence.bars}")
 
     for tr in meta.tracks:
-        print(f"  Track {tr.index}: name={tr.name}, Ga-11 notes={len(tr.ga11_notes)}, Ga events={len(tr.ga_events)}, MIDI automation events={len(tr.midi_automation_events)}")
+        print(f"  SXQ track {tr.index}: name={tr.name}, Ga-11 notes={len(tr.ga11_notes)}, Ga events={len(tr.ga_events)}, MIDI automation events={len(tr.midi_automation_events)}")
 
-    midi_bytes = build_midi_from_sxq_meta(meta, verbose = True)
+    midi_bytes = build_midi_from_sxq_meta(meta, verbose=True, extractAllTracks=extractAllTracks)
 
     with open(midi_path, "wb") as f:
         f.write(midi_bytes)
@@ -596,7 +613,7 @@ def sxq_to_midi_full(sxq_path: str, midi_path: str):
     print(f"\nWrote MIDI: {midi_path}")
 
 def main():
-    sxq_to_midi_full(sys.argv[1], sys.argv[2])
+    sxq_to_midi_full(sys.argv[1], sys.argv[2], extractAllTracks = False)
 
 if __name__ == '__main__':
     main()
