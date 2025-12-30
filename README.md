@@ -31,6 +31,8 @@ Handles only a single sequence. For each track in the sequence, if it has any no
 
 # TODO - sxq_to_midi.py
 
+- ... Track offset is not relative to the other tracks anymore - they all start the first note at 0 or an incorrect offset. See broken lead example.
+- Add SXQ format details to README
 - Handle triplets
 - Handle 2 bars + half/dotted whole tied notes
 - Handle 2 bars + quarter/dotted half tied notes
