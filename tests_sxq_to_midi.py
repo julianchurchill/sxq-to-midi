@@ -3,12 +3,12 @@ from os import getcwd, listdir
 from os.path import isfile, join
 from parameterized import parameterized
 from pathlib import Path
-from sxq_to_midi import sxq_bytes_to_midi_bytes
+from sxq_to_midi import sxq_bytes_to_midi_bytes, sxq_to_midi_full
 
-def test_midi_files():
-    test_files_path = join(getcwd(), "test-midi-files")
-    print(f"{test_files_path}")
-    return [Path(f).stem for f in listdir(test_files_path) if isfile(join(test_files_path, f))]
+def get_filenames_no_extension_in_directory(directory: str):
+    files_path = join(getcwd(), directory)
+    print(f"{files_path}")
+    return [Path(f).stem for f in listdir(files_path) if isfile(join(files_path, f))]
 
 class AcceptanceTests(unittest.TestCase):
 
@@ -28,14 +28,23 @@ class AcceptanceTests(unittest.TestCase):
         print(f"  Hex MIDI2: {midi2_bytes_printable}")
         print(f"             " + "   " * (index - clampedStartMIDI1) + "^^")
 
-    @parameterized.expand(test_midi_files())
+    # Utility test to update all the acceptance test expectated output MIDI files
+    # def test_update_midi_files_from_sxq_files(self):
+    #     sxq_filenames = get_filenames_no_extension_in_directory("test-sxq-files")
+    #     for filename in sxq_filenames:
+    #         # filename = 'wholeTiedQuarterTiedDotted32ndNotes4bars120bpm127velocity-ASharp'
+    #         sxq_path = f'test-sxq-files/{filename}.sxq'
+    #         midi_path = f'test-midi-files/{filename}.mid'
+    #         sxq_to_midi_full(sxq_path, midi_path, extractAllTracks=False)
+
+    @parameterized.expand(get_filenames_no_extension_in_directory("test-midi-files"))
     def test_sxq_converts_to_midi(self, filename):
         sxq_filename = f'test-sxq-files/{filename}.sxq'
         midi_filename = f'test-midi-files/{filename}.mid'
         with open(sxq_filename, "rb") as sxq_file, open(midi_filename, "rb") as expected_midi_file:
             sxq_bytes = sxq_file.read()
             expected_midi_bytes = expected_midi_file.read()
-            converted_midi_bytes = sxq_bytes_to_midi_bytes(sxq_bytes, verbose=False, extractAllTracks=True)
+            converted_midi_bytes = sxq_bytes_to_midi_bytes(sxq_bytes, verbose=False)
             maxLength = max(len(sxq_bytes), len(expected_midi_bytes))
             for index in range(maxLength):
                 b1 = expected_midi_bytes[index] if index < len(expected_midi_bytes) else None
@@ -44,7 +53,7 @@ class AcceptanceTests(unittest.TestCase):
                     print(f"Expected MIDI file '{midi_filename}' and converted SXQ bytes from '{sxq_filename}' first differ at byte {index}")
                     self.print_midi_and_midi_diff(expected_midi_bytes, converted_midi_bytes, index)
                     print("> Rerunning conversion with verbose logging:")
-                    sxq_bytes_to_midi_bytes(sxq_bytes, verbose=True, extractAllTracks=True)
+                    sxq_bytes_to_midi_bytes(sxq_bytes, verbose=True)
                     self.fail('Expected MIDI file and converted SXQ bytes differ')
 
 if __name__ == '__main__':
