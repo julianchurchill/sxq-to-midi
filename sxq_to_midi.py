@@ -231,17 +231,26 @@ def parse_sxq(sxq_bytes: bytes, verbose = None) -> SXQMetadata:
                 meta_type = sxq_bytes[track_offset]
                 track_offset += 1
 
-                # For meta_type 70 (MIDI automation event) expect 1 byte of 01 followed by 1 or zero instances of 
-                #  5 bytes of the form xx yy b0 zz vv
-                #  where xx yy is a timestamp, zz is a control identifier (e.g. 7 is volume) and vv is the new value
+                # For meta_type 70 (MIDI automation event) expect 2 bytes of 01 00 followed by 0 or 1 instances of 
+                #   n bytes of the form yy b0 zz vv
+                #  where yy is a delta time (1-4 bytes variable length value), zz is a control identifier (e.g. 7 is volume)
+                #   and vv is the new value
                 # The sequence is always terminated by a last byte of 00 before an FF - but ignore the 00 and let the 
                 #  track loop read it as an event delta of 0 so it can proceed to the next event in the track neatly
                 if meta_type == 0x70:
+                    # skip 01 00 bytes
+                    track_offset += 2
+                    # find 0xFF byte to indicate end of this event
                     meta_len = 0
                     while sxq_bytes[track_offset + meta_len] != 0xff:
                         meta_len += 1
-                    # ignore the last byte of 00
-                    meta_len -= 1
+                    # meta_len must be >= 5 to indicate a MIDI event (4 bytes plus 00 terminator)
+                    #  otherwise it's just a delta time for the next event so don't consume it
+                    if meta_len >= 5:
+                        # ignore the last byte of 00
+                        meta_len -= 1
+                    else:
+                        meta_len = 0
                 else:
                     meta_len, track_offset = read_vlq(sxq_bytes, track_offset)
                 meta_data_start = track_offset
@@ -281,22 +290,24 @@ def parse_sxq(sxq_bytes: bytes, verbose = None) -> SXQMetadata:
 
                 # Track level initial MIDI automation event
                 elif meta_type == 0x70:
-                    # parse the event if it contains 6 bytes - should be of the form:
-                    #  01 xx yy b0 zz vv
-                    #  where xx yy is a timestamp, zz is a control identifier (e.g. 7 is volume) and vv is the new value
-                    if meta_len == 6:
-                        channel = meta_data[3] & 0x0F
-                        control_type = meta_data[4]
-                        value = meta_data[5]
+                    # parse the event if it contains >= 4 and <= 7 bytes - should be of the form:
+                    #  yy b0 zz vv
+                    #  where yy is a delta time (1-4 bytes variable length value), zz is a control identifier (e.g. 7 is volume) and vv is the new value
+                    if meta_len >= 4 and meta_len <= 7:
+                        # read variable length value - should be a delta time between 1 and 4 bytes
+                        delta_time, meta_data_offset = read_vlq(meta_data, 0)
+                        channel = meta_data[meta_data_offset] & 0x0F
+                        control_type = meta_data[meta_data_offset+1]
+                        value = meta_data[meta_data_offset+2]
                         event = MidiAutomationEvent(
-                            event_delta=event_delta,
+                            event_delta=delta_time,
                             track_absolute_ticks=track_absolute_ticks,
                             channel=channel,
                             control_type=control_type,
                             value=value
                         )
                         track.midi_automation_events.append(event)
-                        if verbose: print(f"    [Initial MIDI automation event] event_delta={event_delta}, track_absolute_ticks={track_absolute_ticks}, channel={channel}, control_type={control_type}, value={value}")
+                        if verbose: print(f"    [Initial MIDI automation event] event_delta={delta_time}, track_absolute_ticks={track_absolute_ticks}, channel={channel}, control_type={control_type}, value={value}")
 
                 # Vendor-specific (Ga)
                 elif meta_type == 0x7F:

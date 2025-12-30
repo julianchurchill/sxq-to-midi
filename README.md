@@ -31,8 +31,6 @@ Handles only a single sequence. For each track in the sequence, if it has any no
 
 # TODO - sxq_to_midi.py
 
-- ... Track offset is not relative to the other tracks anymore - they all start the first note at 0 or an incorrect offset. See broken lead example.
-    - ✅introduced in "started work on reading and writing MIDI volume automation events" commit id 1f9a81245cde225d9f2a20c3c794dd80dc4bfb8a from 13:28 29/12/2025
 - Add SXQ format details to README
 - Handle triplets
 - Handle 2 bars + half/dotted whole tied notes
@@ -43,6 +41,8 @@ Handles only a single sequence. For each track in the sequence, if it has any no
 
 # Done
 
+- Fixed - Track offset is not relative to the other tracks anymore - they all start the first note at 0 or an incorrect offset. See broken lead example.
+    - ✅introduced in "started work on reading and writing MIDI volume automation events" commit id 1f9a81245cde225d9f2a20c3c794dd80dc4bfb8a from 13:28 29/12/2025
 - Only extract MIDI tracks that have notes or automation events in them
 - Handle tempo (not in a special track 0 conductor track if possible)
 - Handle time signature (not in a special track 0 conductor track if possible)
